@@ -3,14 +3,14 @@
 ## Objective
 This module is responsible for writing incoming data into HDFS.
 
-## Funcationality
+## Functionality
 This module assumes that all incoming tuples are to be written to the same destination file path.
 After max file size limit is reached; output will be rolled over to the new file with incremental id suffixed to it.
 
 For example, if module is configured to write to filePath `\user\username\path\to\destination\filename.txt` and max file size is set to 100 MB.
 Then, output will be rolled over to filename.txt.1, filename.txt.2 ...
 
-## Dependancies
+## Dependencies
 
 This module will have a concrete implementation which extends  `com.datatorrent.lib.io.fs.AbstractFileOutputOperator` under malhar library.
 Thus, it is heavily dependent on the functionality provided by that operator.
@@ -69,7 +69,7 @@ Since this is output module; it will not have any output ports.
 - dtingest: Copying messages from Kafka to HDFS
 - writing output of Dedup to HDFS
 
-## Pathalogical cases
+## Pathological cases
 - More than one instances of the HDFS output module writing to the same filePath. This case will not be handled in the first cut implementation.
 
 ## Future work
