@@ -42,7 +42,7 @@ int partitionCount
 
  ## Input ports
 
- - **input**: Input port to receive incoming data to be written to HDFS. Incoming tuples should implement `FileOutputData` interface mentioned [Interfaces section](#interfaces).
+ - **input**: Input port to receive incoming data to be written to HDFS.
 
 
 ## Output ports
