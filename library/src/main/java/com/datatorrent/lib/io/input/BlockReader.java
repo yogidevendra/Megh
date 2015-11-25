@@ -39,12 +39,14 @@ import com.datatorrent.lib.io.block.FSSliceReader;
 import com.datatorrent.lib.io.block.ModuleBlockMetadata;
 import com.datatorrent.netlet.util.Slice;
 
-@StatsListener.DataQueueSize
 /**
- * <p>BlockReader class.</p>
+ * BlockReader extends {@link FSSliceReader} and adds retry logic for reading
+ * failed input data blocks.<br/>
+ * Exposes bytesReadPerSec metric.
  *
- * @since 3.2.0
+ * @since 1.0.0
  */
+@StatsListener.DataQueueSize
 public class BlockReader extends FSSliceReader
 {
   protected int maxRetries;
@@ -74,6 +76,9 @@ public class BlockReader extends FSSliceReader
         * context.getValue(Context.DAGContext.STREAMING_WINDOW_SIZE_MILLIS) * 1.0) / 1000.0;
   }
 
+  /**
+   * Retry reading failed blocks during idle time
+   */
   @Override
   public void handleIdleTime()
   {

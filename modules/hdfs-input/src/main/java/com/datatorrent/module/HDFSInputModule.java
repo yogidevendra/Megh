@@ -25,6 +25,7 @@ import org.apache.hadoop.conf.Configuration;
 
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DAG;
+import com.datatorrent.api.Module;
 import com.datatorrent.common.metric.MetricsAggregator;
 import com.datatorrent.common.metric.SingleMetricAggregator;
 import com.datatorrent.common.metric.sum.LongSumAggregator;
@@ -32,17 +33,17 @@ import com.datatorrent.common.partitioner.StatelessPartitioner;
 import com.datatorrent.lib.counters.BasicCounters;
 import com.datatorrent.lib.io.block.AbstractBlockReader.ReaderRecord;
 import com.datatorrent.lib.io.block.BlockMetadata.FileBlockMetadata;
-import com.datatorrent.lib.io.fs.AbstractFileSplitter.FileMetadata;
+import com.datatorrent.lib.io.input.AbstractFileSplitter.FileMetadata;
 import com.datatorrent.lib.io.input.ModuleFileSplitter.Scanner;
 import com.datatorrent.netlet.util.Slice;
 import com.datatorrent.operator.HDFSBlockReader;
 import com.datatorrent.operator.HDFSFileSplitter;
 
 /**
- * HDFSInputModule is used to read files on HDFS in parallel. <br/>
+ * HDFSInputModule is used to read files from HDFS. <br/>
  * Module emits FileMetadata, BlockMetadata and the block bytes.
  */
-public class HDFSInputModule implements com.datatorrent.api.Module
+public class HDFSInputModule implements Module
 {
   @NotNull
   @Size(min = 1)
@@ -60,10 +61,18 @@ public class HDFSInputModule implements com.datatorrent.api.Module
   public final transient ProxyOutputPort<FileBlockMetadata> blocksMetadataOutput = new ProxyOutputPort();
   public final transient ProxyOutputPort<ReaderRecord<Slice>> messages = new ProxyOutputPort();
 
-  //  @Override
+//  @Override
   public void populateDAG(DAG dag, Configuration conf)
   {
     HDFSFileSplitter fileSplitter = dag.addOperator("FileSplitter", new HDFSFileSplitter());
+    HDFSBlockReader blockReader = dag.addOperator("BlockReader", new HDFSBlockReader());
+
+    dag.addStream("BlockMetadata", fileSplitter.blocksMetadataOutput, blockReader.blocksMetadataInput);
+
+    filesMetadataOutput.set(fileSplitter.filesMetadataOutput);
+    blocksMetadataOutput.set(blockReader.blocksMetadataOutput);
+    messages.set(blockReader.messages);
+
     if (blockSize != 0) {
       fileSplitter.setBlockSize(blockSize);
     }
@@ -80,9 +89,7 @@ public class HDFSInputModule implements com.datatorrent.api.Module
     if (bandwidth != 0) {
       fileSplitter.getBandwidthManager().setBandwidth(bandwidth);
     }
-    //TODO: set onetime copy
-
-    HDFSBlockReader blockReader = dag.addOperator("BlockReader", new HDFSBlockReader());
+    
     blockReader.setUri(files);
     if (readersCount != 0) {
       dag.setAttribute(blockReader, Context.OperatorContext.PARTITIONER, new StatelessPartitioner<HDFSBlockReader>(
@@ -94,12 +101,6 @@ public class HDFSInputModule implements com.datatorrent.api.Module
     dag.setAttribute(blockReader, Context.OperatorContext.METRICS_AGGREGATOR, blockReaderMetrics);
     dag.setAttribute(blockReader, Context.OperatorContext.COUNTERS_AGGREGATOR,
         new BasicCounters.LongAggregator<MutableLong>());
-
-    filesMetadataOutput.set(fileSplitter.filesMetadataOutput);
-    blocksMetadataOutput.set(blockReader.blocksMetadataOutput);
-    messages.set(blockReader.messages);
-
-    dag.addStream("BlockMetadata", fileSplitter.blocksMetadataOutput, blockReader.blocksMetadataInput);
   }
 
   /**
@@ -137,8 +138,7 @@ public class HDFSInputModule implements com.datatorrent.api.Module
   /**
    * Only files with names matching the given java regular expression are split
    *
-   * @param filePatternRegexp
-   *          regular expression
+   * @param filePatternRegexp regular expression
    */
   public void setFilePatternRegularExp(String filePatternRegexp)
   {
@@ -227,7 +227,6 @@ public class HDFSInputModule implements com.datatorrent.api.Module
     this.blockSize = blockSize;
   }
 
- 
   /**
    * Gets is sequencial file read
    * 

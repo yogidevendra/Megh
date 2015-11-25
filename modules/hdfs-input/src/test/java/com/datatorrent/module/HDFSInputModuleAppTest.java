@@ -40,7 +40,7 @@ import com.datatorrent.api.StreamingApplication;
 import com.datatorrent.lib.io.block.AbstractBlockReader.ReaderRecord;
 import com.datatorrent.lib.io.block.BlockMetadata.FileBlockMetadata;
 import com.datatorrent.lib.io.fs.AbstractFileOutputOperator;
-import com.datatorrent.lib.io.fs.AbstractFileSplitter.FileMetadata;
+import com.datatorrent.lib.io.input.AbstractFileSplitter.FileMetadata;
 import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
 import com.datatorrent.lib.stream.DevNull;
 import com.datatorrent.module.HDFSInputModule;

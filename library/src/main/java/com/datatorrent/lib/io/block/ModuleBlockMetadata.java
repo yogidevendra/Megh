@@ -16,6 +16,10 @@
 
 package com.datatorrent.lib.io.block;
 
+/**
+ * ModuleBlockMetadata extends {@link BlockMetadata} to provide an option if
+ * blocks of a file should be read in-sequence or in-parallel
+ */
 public class ModuleBlockMetadata extends BlockMetadata.FileBlockMetadata
 {
   boolean readBlockInSequence;

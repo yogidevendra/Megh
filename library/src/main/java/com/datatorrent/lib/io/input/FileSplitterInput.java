@@ -361,7 +361,7 @@ public class FileSplitterInput extends AbstractFileSplitter implements InputOper
     /**
      * Stop scanner
      */
-    protected void stopScanner()
+    protected void stopScanning()
     {
       running = false;
     }

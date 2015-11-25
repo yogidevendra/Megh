@@ -28,20 +28,35 @@ import javax.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Maps;
 
+import com.datatorrent.api.Context.DAGContext;
 import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.api.StatsListener;
 import com.datatorrent.lib.bandwidth.BandwidthLimitingOperator;
 import com.datatorrent.lib.bandwidth.BandwidthManager;
 import com.datatorrent.lib.io.block.BlockMetadata.FileBlockMetadata;
 import com.datatorrent.lib.io.block.ModuleBlockMetadata;
 
+/**
+ * ModuleFileSplitter extends {@link FileSplitterInput} to add following
+ * features:<br/>
+ * 1. Bandwidth Limitation on input rate<br/>
+ * 2. Option to do sequential or parallel read of input file<br/>
+ * 3. Exposes terminateApp flag which can be set by downstream operator through
+ * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{@link StatsListener}<br/>
+ * 4. Modified scanner to ignore Symbolic links, copy blank directory from
+ * input, scan files with similar names residing in different input directories.
+ */
 public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLimitingOperator
 {
   private static Logger LOG = LoggerFactory.getLogger(ModuleFileSplitter.class);
+  private transient FileSystem appFS;
   private BandwidthManager bandwidthManager;
   private FileBlockMetadata currentBlockMetadata;
   private boolean sequencialFileRead;
@@ -63,10 +78,30 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
   }
 
   @Override
+  protected long getDefaultBlockSize()
+  {
+    try {
+      if (appFS == null) {
+        appFS = getLocalFS();
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to get FileSystem instance.", e);
+    }
+    //getting block size of local HDFS by default, to optimize the blocks for fast merge
+    return appFS.getDefaultBlockSize(new Path(context.getValue(DAGContext.APPLICATION_PATH)));
+  }
+
+  protected FileSystem getLocalFS() throws IOException
+  {
+    return FileSystem.newInstance(new Configuration());
+  }
+
+  @Override
   public void endWindow()
   {
     super.endWindow();
-    if (((Scanner) getScanner()).isOneTimeCopy() && ((Scanner) getScanner()).isFirstScanComplete() && blockMetadataIterator == null) {
+    if (((Scanner)getScanner()).isOneTimeCopy() && ((Scanner)getScanner()).isFirstScanComplete()
+        && blockMetadataIterator == null) {
       try {
         checkCompletion();
       } catch (IOException e) {
@@ -88,6 +123,13 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
   {
     super.teardown();
     bandwidthManager.teardown();
+    if (appFS != null) {
+      try {
+        appFS.close();
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to close application file system.", e);
+      }
+    }
   }
 
   @Override
@@ -305,7 +347,7 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
     {
       super.scanIterationComplete();
       if (oneTimeCopy) {
-        super.stopScanner();
+        super.stopScanning();
       }
       firstScanComplete = true;
     }
