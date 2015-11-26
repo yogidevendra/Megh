@@ -20,6 +20,8 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.common.util.BaseOperator;
 import com.datatorrent.lib.counters.BasicCounters;
 import com.datatorrent.lib.io.fs.FileSplitterInput;
+import com.datatorrent.lib.io.input.ModuleFileSplitter;
+import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
 
 /**
  * <p>Synchronizer class.</p>
@@ -66,14 +68,19 @@ public class Synchronizer extends BaseOperator
     @Override
     public void process(FileSplitterInput.FileMetadata fmd)
     {
-      IngestionFileMetaData fileMetadata = null;
-      if (fmd instanceof IngestionFileMetaData) {
-        fileMetadata = (IngestionFileMetaData) fmd;
+      
+      ModuleFileMetaData mfileMetadata = null;
+      if (fmd instanceof ModuleFileMetaData) {
+        mfileMetadata = (ModuleFileMetaData) fmd;
       }
 
-      if (null == fileMetadata) {
+      if (null == mfileMetadata) {
         throw new RuntimeException("Input tuple is not an instance of IngestionFileMetaData.");
       }
+      
+      
+      IngestionFileMetaData fileMetadata = new IngestionFileMetaData(mfileMetadata);
+      
       
       String filePath = fileMetadata.getFilePath();
       Set<Long> activeBlocks = Sets.newHashSet();

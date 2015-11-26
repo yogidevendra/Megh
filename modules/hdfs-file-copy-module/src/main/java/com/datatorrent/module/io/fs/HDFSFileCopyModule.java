@@ -2,9 +2,9 @@ package com.datatorrent.module.io.fs;
 
 import javax.validation.constraints.NotNull;
 
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.hadoop.conf.Configuration;
 
 import com.datatorrent.api.Context.PortContext;
 import com.datatorrent.api.DAG;
@@ -12,6 +12,7 @@ import com.datatorrent.api.Module;
 import com.datatorrent.lib.io.block.AbstractBlockReader.ReaderRecord;
 import com.datatorrent.lib.io.block.BlockMetadata;
 import com.datatorrent.lib.io.fs.AbstractFileSplitter.FileMetadata;
+import com.datatorrent.lib.stream.DevNull;
 import com.datatorrent.netlet.util.Slice;
 
 public class HDFSFileCopyModule implements Module
@@ -25,17 +26,16 @@ public class HDFSFileCopyModule implements Module
   protected String directory;
   
   
-  public final transient ProxyInputPort<FileMetadata> filesMetadataInput = new ProxyInputPort();
-  public final transient ProxyInputPort<BlockMetadata.FileBlockMetadata> blocksMetadataInput = new ProxyInputPort();
-  public final transient ProxyInputPort<ReaderRecord<Slice>> blockData = new ProxyInputPort();
+  public final transient ProxyInputPort<FileMetadata> filesMetadataInput = new ProxyInputPort<FileMetadata>();
+  public final transient ProxyInputPort<BlockMetadata.FileBlockMetadata> blocksMetadataInput = new ProxyInputPort<BlockMetadata.FileBlockMetadata>();
+  public final transient ProxyInputPort<ReaderRecord<Slice>> blockData = new ProxyInputPort<ReaderRecord<Slice>>();
   
   @Override
   public void populateDAG(DAG dag, Configuration conf)
   {
 
-
+    //Defining DAG
     BlockWriter blockWriter = dag.addOperator("BlockWriter", new BlockWriter());
-
     Synchronizer synchronizer = dag.addOperator("BlockSynchronizer", new Synchronizer());
     
     dag.setInputPortAttribute(blockWriter.input, PortContext.PARTITION_PARALLEL, true);
@@ -45,10 +45,21 @@ public class HDFSFileCopyModule implements Module
     HDFSFileMerger merger = new HDFSFileMerger();
     merger = dag.addOperator("FileMerger", merger);
     dag.addStream("MergeTrigger", synchronizer.trigger, merger.input);
-      
+
+    DevNull<IngestionFileMetaData> devNull1 = dag.addOperator("devNull1", DevNull.class);
+    dag.addStream("ignored", merger.completedFilesMetaOutput, devNull1.data);
+    
+    DevNull<TrackerEvent> devNull2 = dag.addOperator("devNull2", DevNull.class);
+    dag.addStream("ignored2", merger.trackerOutPort, devNull2.data);
+    
+    //Setting operator properties
+    merger.setFilePath(constructFilePath());
+    
+    //Binding proxy ports
     filesMetadataInput.set(synchronizer.filesMetadataInput);
     blocksMetadataInput.set(blockWriter.blockMetadataInput);
     blockData.set(blockWriter.input);
+    
     
   }
 

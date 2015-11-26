@@ -18,12 +18,12 @@ public class HDFSFileCopyModuleDemo implements StreamingApplication
   public void populateDAG(DAG dag, Configuration conf)
   {
     
-    HDFSInputModule inputModule = new HDFSInputModule();
+    HDFSInputModule inputModule = dag.addModule("hdfsInputModule", new HDFSInputModule());
     HDFSFileCopyModule outputModule = dag.addModule("HDFSFileCopyModule", new HDFSFileCopyModule());
     
     dag.addStream("FileMetaData", inputModule.filesMetadataOutput, outputModule.filesMetadataInput);
-    //dag.addStream("BlocksMetaData", inputModule.blocksMetadataOutput, outputModule.blocksMetadataInput).setLocality(Locality.THREAD_LOCAL);;
-    dag.addStream("BlocksData", inputModule.messages, outputModule.blockData).setLocality(Locality.THREAD_LOCAL);;
+    dag.addStream("BlocksMetaData", inputModule.blocksMetadataOutput, outputModule.blocksMetadataInput).setLocality(Locality.THREAD_LOCAL);
+    dag.addStream("BlocksData", inputModule.messages, outputModule.blockData).setLocality(Locality.THREAD_LOCAL);
     
   }
   

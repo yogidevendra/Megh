@@ -3,8 +3,8 @@ package com.datatorrent.module.io.fs;
 import java.util.List;
 
 import com.google.common.collect.Lists;
-
 import com.datatorrent.lib.io.fs.FileSplitterInput;
+import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
 import com.datatorrent.module.io.fs.TrackerEvent.TrackerEventType;
 
 /**
@@ -31,6 +31,24 @@ public class IngestionFileMetaData extends FileSplitterInput.FileMetadata implem
   public IngestionFileMetaData(String currentFile)
   {
     super(currentFile);
+    completionStatus = TrackerEventType.DISCOVERED;
+    compressionTime = 0;
+    outputFileSize = 0;
+    encryptionTime = 0;
+  }
+  
+  public IngestionFileMetaData(ModuleFileMetaData fileMetadata)
+  {
+    super(fileMetadata.getFilePath());
+    setRelativePath(getRelativePath());
+    setFileName(getFileName());
+    setNumberOfBlocks(getNumberOfBlocks());
+    setDataOffset(getDataOffset());
+    setFileLength(getFileLength());
+    setDiscoverTime(getDiscoverTime());
+    setBlockIds(getBlockIds());
+    setDirectory(isDirectory());
+    
     completionStatus = TrackerEventType.DISCOVERED;
     compressionTime = 0;
     outputFileSize = 0;
