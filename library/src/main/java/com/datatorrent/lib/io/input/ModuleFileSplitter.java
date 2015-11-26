@@ -330,6 +330,7 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
       ScannedFileInfo info = createScannedFileInfo(parentStatus.getPath(), parentStatus, childPath, childStatus,
           rootPath);
 
+      LOG.debug("Processing file: " + info.getFilePath());
       processDiscoveredFile(info);
     }
 
@@ -404,6 +405,7 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
       String relativePath = getRelativePathWithFolderName(fileInfo);
       moduleFileMetaData.setRelativePath(relativePath);
     }
+    LOG.debug("****FileMetadata: "+moduleFileMetaData.toString());
     return moduleFileMetaData;
   }
 
