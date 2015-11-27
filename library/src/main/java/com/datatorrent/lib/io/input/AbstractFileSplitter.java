@@ -258,7 +258,7 @@ public abstract class AbstractFileSplitter extends BaseOperator
   /**
    * An {@link Iterator} for Block-Metadatas of a file.
    */
-  protected static class BlockMetadataIterator implements Iterator<BlockMetadata.FileBlockMetadata>
+  public static class BlockMetadataIterator implements Iterator<BlockMetadata.FileBlockMetadata>
   {
     private final FileMetadata fileMetadata;
     private final long blockSize;
@@ -276,7 +276,7 @@ public abstract class AbstractFileSplitter extends BaseOperator
       splitter = null;
     }
 
-    protected BlockMetadataIterator(AbstractFileSplitter splitter, FileMetadata fileMetadata, long blockSize)
+    public BlockMetadataIterator(AbstractFileSplitter splitter, FileMetadata fileMetadata, long blockSize)
     {
       this.splitter = splitter;
       this.fileMetadata = fileMetadata;

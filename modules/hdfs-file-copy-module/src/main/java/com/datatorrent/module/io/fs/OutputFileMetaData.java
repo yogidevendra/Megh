@@ -68,7 +68,7 @@ public interface OutputFileMetaData
      * @param sourceRelativePath
      * @param isLastBlockSource
      */
-    public OutputFileBlockMetaData(ExtendedFileBlockMetadata fmd, String sourceRelativePath, boolean isLastBlockSource)
+    public OutputFileBlockMetaData(FileBlockMetadata fmd, String sourceRelativePath, boolean isLastBlockSource)
     {
       super(fmd.getFilePath(), fmd.getBlockId(), fmd.getOffset(), fmd.getLength(), fmd.isLastBlock(), fmd.getPreviousBlockId());
       this.sourceRelativePath = sourceRelativePath;

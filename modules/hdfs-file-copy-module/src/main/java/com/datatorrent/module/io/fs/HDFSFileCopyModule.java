@@ -11,8 +11,9 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.Module;
 import com.datatorrent.lib.io.block.AbstractBlockReader.ReaderRecord;
 import com.datatorrent.lib.io.block.BlockMetadata;
-import com.datatorrent.lib.io.fs.AbstractFileSplitter.FileMetadata;
+import com.datatorrent.lib.io.input.AbstractFileSplitter.FileMetadata;
 import com.datatorrent.lib.stream.DevNull;
+import com.datatorrent.module.io.fs.IngestionFileSplitter.IngestionFileMetaData;
 import com.datatorrent.netlet.util.Slice;
 
 public class HDFSFileCopyModule implements Module

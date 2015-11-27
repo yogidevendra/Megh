@@ -30,6 +30,6 @@
   </property>
   <property>
     <name>dt.loggers.level</name>
-    <value>com.datatorrent.module.*:DEBUG,org.apache.*:INFO</value>
+    <value>com.datatorrent.module.*:DEBUG,com.datatorrent.lib.io.input.*:DEBUG,org.apache.*:INFO</value>
 </property>
 </configuration>

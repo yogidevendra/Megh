@@ -12,16 +12,16 @@ import org.apache.commons.lang.mutable.MutableLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.common.util.BaseOperator;
 import com.datatorrent.lib.counters.BasicCounters;
-import com.datatorrent.lib.io.fs.FileSplitterInput;
-import com.datatorrent.lib.io.input.ModuleFileSplitter;
+import com.datatorrent.lib.io.input.AbstractFileSplitter.FileMetadata;
 import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
+import com.datatorrent.module.io.fs.IngestionFileSplitter.IngestionFileMetaData;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * <p>Synchronizer class.</p>
@@ -63,11 +63,12 @@ public class Synchronizer extends BaseOperator
     context.setCounters(counters);
   }
 
-  public final transient DefaultInputPort<FileSplitterInput.FileMetadata> filesMetadataInput = new DefaultInputPort<FileSplitterInput.FileMetadata>()
+  public final transient DefaultInputPort<FileMetadata> filesMetadataInput = new DefaultInputPort<FileMetadata>()
   {
     @Override
-    public void process(FileSplitterInput.FileMetadata fmd)
+    public void process(FileMetadata fmd)
     {
+      LOG.debug("****fmd.getBlockIds().length: {}",fmd.getBlockIds().length);
       
       ModuleFileMetaData mfileMetadata = null;
       if (fmd instanceof ModuleFileMetaData) {
@@ -77,10 +78,10 @@ public class Synchronizer extends BaseOperator
       if (null == mfileMetadata) {
         throw new RuntimeException("Input tuple is not an instance of IngestionFileMetaData.");
       }
-      
+      LOG.debug("****mfileMetadata.getBlockIds().length: {}",mfileMetadata.getBlockIds().length);
       
       IngestionFileMetaData fileMetadata = new IngestionFileMetaData(mfileMetadata);
-      
+      LOG.debug("****fileMetadata.getBlockIds().length: {}",fileMetadata.getBlockIds().length);
       
       String filePath = fileMetadata.getFilePath();
       Set<Long> activeBlocks = Sets.newHashSet();

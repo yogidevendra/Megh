@@ -22,6 +22,7 @@ import com.datatorrent.api.Context;
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.module.io.fs.FilterStreamProviders.TimedCipherOutputStream;
+import com.datatorrent.module.io.fs.IngestionFileSplitter.IngestionFileMetaData;
 import com.datatorrent.module.io.fs.TrackerEvent.TrackerEventType;
 
 /**

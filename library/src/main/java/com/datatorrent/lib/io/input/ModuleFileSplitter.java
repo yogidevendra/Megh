@@ -16,9 +16,11 @@
 
 package com.datatorrent.lib.io.input;
 
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,14 +29,12 @@ import javax.validation.constraints.NotNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Maps;
-
 import com.datatorrent.api.Context.DAGContext;
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.StatsListener;
@@ -406,6 +406,8 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
       moduleFileMetaData.setRelativePath(relativePath);
     }
     LOG.debug("****FileMetadata: "+moduleFileMetaData.toString());
+    LOG.debug("****FileMetadata.getBlockIds: "+ Arrays.asList(moduleFileMetaData.getBlockIds()));
+    
     return moduleFileMetaData;
   }
 
@@ -425,6 +427,8 @@ public class ModuleFileSplitter extends FileSplitterInput implements BandwidthLi
     ModuleBlockMetadata blockMetadata = (ModuleBlockMetadata)metadata;
     return blockMetadata;
   }
+  
+  
 
   /*
    * As folder name was given to input for copy, prefix folder name to the sub items to copy.

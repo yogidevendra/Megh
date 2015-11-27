@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.module.io.fs.IngestionFileSplitter.IngestionFileMetaData;
 
 
 /**
