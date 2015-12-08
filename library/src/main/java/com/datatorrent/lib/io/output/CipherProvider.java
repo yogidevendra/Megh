@@ -1,3 +1,8 @@
+/*
+ *  Copyright (c) 2015 DataTorrent, Inc.
+ *  All Rights Reserved.
+ */
+
 package com.datatorrent.lib.io.output;
 
 import java.security.InvalidKeyException;
@@ -31,7 +36,8 @@ public class CipherProvider
   /**
    * Initializes cipher with given key in encryption mode
    *
-   * @param secret secret key
+   * @param secret
+   *          secret key
    */
   public Cipher getEncryptionCipher(Key secret)
   {
@@ -46,7 +52,8 @@ public class CipherProvider
   /**
    * Initializes cipher with given key in decrypt mode
    *
-   * @param secret secret key
+   * @param secret
+   *          secret key
    */
   public Cipher getDecryptionCipher(Key secret)
   {

@@ -5,7 +5,6 @@
 package com.datatorrent.lib.io.output;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.security.Key;
 
@@ -13,24 +12,23 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.hadoop.fs.Path;
 
 import com.datatorrent.api.AutoMetric;
 import com.datatorrent.api.Context;
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultOutputPort;
-import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
-import com.datatorrent.lib.io.output.CryptoInformation;
 import com.datatorrent.lib.io.output.FilterStreamProviders.TimedCipherOutputStream;
 import com.datatorrent.lib.io.output.TrackerEvent.TrackerEventType;
 
 /**
- * This operator merges the blocks into a file.
- * The list of blocks is obtained from the IngestionFileMetaData.
- * The implementation extends OutputFileMerger (which uses reconsiler),
- * hence the file merging operation is carried out in a separate thread.
+ * This operator merges the blocks into a file. The list of blocks is obtained
+ * from the IngestionFileMetaData. The implementation extends OutputFileMerger
+ * (which uses reconsiler), hence the file merging operation is carried out in a
+ * separate thread.
  *
  * @since 1.0.0
  */
@@ -42,23 +40,23 @@ public class IngestionFileMerger extends OutputFileMerger<ExtendedModuleFileMeta
   private CryptoInformation cryptoInformation;
 
   private static final Logger LOG = LoggerFactory.getLogger(IngestionFileMerger.class);
-  
+
   public final transient DefaultOutputPort<TrackerEvent> trackerOutPort = new DefaultOutputPort<TrackerEvent>();
-  
+
   @AutoMetric
   private long bytesWrittenPerSec;
-  
-  private long bytesWritten;
-  private double windowTimeSec; 
 
-  
+  private long bytesWritten;
+  private double windowTimeSec;
+
   @Override
   public void setup(OperatorContext context)
   {
     super.setup(context);
-    windowTimeSec = (context.getValue(Context.OperatorContext.APPLICATION_WINDOW_COUNT) * context.getValue(Context.DAGContext.STREAMING_WINDOW_SIZE_MILLIS) * 1.0) / 1000.0;
+    windowTimeSec = (context.getValue(Context.OperatorContext.APPLICATION_WINDOW_COUNT)
+        * context.getValue(Context.DAGContext.STREAMING_WINDOW_SIZE_MILLIS) * 1.0) / 1000.0;
   }
-  
+
   @Override
   public void beginWindow(long windowId)
   {
@@ -85,40 +83,41 @@ public class IngestionFileMerger extends OutputFileMerger<ExtendedModuleFileMeta
         successfulFiles.remove(tuple);
         trackerOutPort.emit(new TrackerEvent(TrackerEventType.SUCCESSFUL_FILE, tuple.getFilePath()));
         tuple.setCompletionStatus(TrackerEventType.SUCCESSFUL_FILE);
-        LOG.debug("File copy successful: {}", tuple.getOutputRelativePath());        
-      }else if(skippedFiles.contains(tuple)) {
+        LOG.debug("File copy successful: {}", tuple.getOutputRelativePath());
+      } else if (skippedFiles.contains(tuple)) {
         skippedFiles.remove(tuple);
         trackerOutPort.emit(new TrackerEvent(TrackerEventType.SKIPPED_FILE, tuple.getFilePath()));
         tuple.setCompletionStatus(TrackerEventType.SKIPPED_FILE);
         LOG.debug("File copy skipped: {}", tuple.getOutputRelativePath());
-      }else if(failedFiles.contains(tuple)){
+      } else if (failedFiles.contains(tuple)) {
         failedFiles.remove(tuple);
         trackerOutPort.emit(new TrackerEvent(TrackerEventType.FAILED_FILE, tuple.getFilePath()));
         tuple.setCompletionStatus(TrackerEventType.FAILED_FILE);
         LOG.debug("File copy failed: {}", tuple.getOutputRelativePath());
       } else {
-        throw new RuntimeException("Tuple present in doneTuples but not in successfulFiles: " + tuple.getOutputRelativePath());
+        throw new RuntimeException(
+            "Tuple present in doneTuples but not in successfulFiles: " + tuple.getOutputRelativePath());
       }
       completedFilesMetaOutput.emit(tuple);
       committedTuples.remove(tuple);
       doneTuples.poll();
     }
-    
-    bytesWrittenPerSec = (long) (bytesWritten / windowTimeSec);
+
+    bytesWrittenPerSec = (long)(bytesWritten / windowTimeSec);
   }
-  
+
   @Override
   protected void mergeOutputFile(ExtendedModuleFileMetaData moduleFileMetaData) throws IOException
   {
     LOG.debug("Processing file: {}", moduleFileMetaData.getOutputRelativePath());
-    
+
     Path outputFilePath = new Path(filePath, moduleFileMetaData.getOutputRelativePath());
     if (moduleFileMetaData.isDirectory()) {
       createDir(outputFilePath);
       successfulFiles.add(moduleFileMetaData);
       return;
     }
-    
+
     if (outputFS.exists(outputFilePath) && !overwriteOutputFile) {
       LOG.debug("Output file {} already exits and overwrite flag is off. Skipping.", outputFilePath);
       skippedFiles.add(moduleFileMetaData);
@@ -127,22 +126,23 @@ public class IngestionFileMerger extends OutputFileMerger<ExtendedModuleFileMeta
     //Call super method for serial merge of blocks
     super.mergeOutputFile(moduleFileMetaData);
     moduleFileMetaData.setCompletionTime(System.currentTimeMillis());
-    
+
     Path destination = new Path(filePath, moduleFileMetaData.getOutputRelativePath());
     Path path = Path.getPathWithoutSchemeAndAuthority(destination);
     long len = outputFS.getFileStatus(path).getLen();
     moduleFileMetaData.setOutputFileSize(len);
   }
-  
+
   /* (non-Javadoc)
    * @see com.datatorrent.apps.ingestion.io.output.OutputFileMerger#writeTempOutputFile(com.datatorrent.apps.ingestion.io.output.OutputFileMetaData)
    */
   @Override
-  protected OutputStream writeTempOutputFile(ExtendedModuleFileMetaData moduleFileMetadata) throws IOException, BlockNotFoundException
+  protected OutputStream writeTempOutputFile(ExtendedModuleFileMetaData moduleFileMetadata)
+      throws IOException, BlockNotFoundException
   {
     OutputStream outputStream = super.writeTempOutputFile(moduleFileMetadata);
-    if(isEncrypt() && outputStream instanceof TimedCipherOutputStream){
-      TimedCipherOutputStream timedCipherOutputStream = (TimedCipherOutputStream) outputStream;
+    if (isEncrypt() && outputStream instanceof TimedCipherOutputStream) {
+      TimedCipherOutputStream timedCipherOutputStream = (TimedCipherOutputStream)outputStream;
       moduleFileMetadata.setEncryptionTime(timedCipherOutputStream.getTimeTaken());
       LOG.debug("Adding to counter TIME_TAKEN_FOR_ENCRYPTION : {}", timedCipherOutputStream.getTimeTaken());
     }
@@ -179,16 +179,17 @@ public class IngestionFileMerger extends OutputFileMerger<ExtendedModuleFileMeta
       metaData.setKey(encryptedSessionKey);
       cipher = new CipherProvider(FilterStreamProviders.AES_TRANSOFRMATION).getEncryptionCipher(sessionKey);
     } else {
-      cipher = new CipherProvider(cryptoInformation.getTransformation()).getEncryptionCipher(cryptoInformation.getSecretKey());
+      cipher = new CipherProvider(cryptoInformation.getTransformation())
+          .getEncryptionCipher(cryptoInformation.getSecretKey());
     }
     return new FilterStreamProviders.TimedCipherOutputStream(outputStream, cipher, metaData);
   }
 
-
   private byte[] encryptSessionkeyWithPKI(Key sessionKey)
   {
     try {
-      Cipher rsaCipher = new CipherProvider(cryptoInformation.getTransformation()).getEncryptionCipher(cryptoInformation.getSecretKey());
+      Cipher rsaCipher = new CipherProvider(cryptoInformation.getTransformation())
+          .getEncryptionCipher(cryptoInformation.getSecretKey());
       return rsaCipher.doFinal(sessionKey.getEncoded());
     } catch (BadPaddingException e) {
       throw new RuntimeException(e);
@@ -196,7 +197,6 @@ public class IngestionFileMerger extends OutputFileMerger<ExtendedModuleFileMeta
       throw new RuntimeException(e);
     }
   }
-
 
   private boolean isPKI()
   {
@@ -216,7 +216,6 @@ public class IngestionFileMerger extends OutputFileMerger<ExtendedModuleFileMeta
     this.overwriteOutputFile = overwriteOutputFile;
   }
 
-  
   public boolean isEncrypt()
   {
     return encrypt;

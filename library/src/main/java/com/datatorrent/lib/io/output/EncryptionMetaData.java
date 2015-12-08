@@ -1,3 +1,8 @@
+/*
+ *  Copyright (c) 2015 DataTorrent, Inc.
+ *  All Rights Reserved.
+ */
+
 package com.datatorrent.lib.io.output;
 
 import java.io.Serializable;
@@ -5,7 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * <p>EncryptionMetaData class.</p>
+ * <p>
+ * EncryptionMetaData class.
+ * </p>
  *
  * @since 1.0.0
  */

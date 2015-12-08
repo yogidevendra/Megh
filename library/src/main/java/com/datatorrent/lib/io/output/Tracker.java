@@ -1,14 +1,18 @@
+/*
+ *  Copyright (c) 2015 DataTorrent, Inc.
+ *  All Rights Reserved.
+ */
+
 package com.datatorrent.lib.io.output;
 
 import java.io.IOException;
 import java.text.NumberFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -16,8 +20,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import com.datatorrent.api.AutoMetric;
 import com.datatorrent.api.Context.DAGContext;
@@ -27,25 +32,24 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.lib.io.input.AbstractFileSplitter.FileMetadata;
 import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
 import com.datatorrent.lib.io.output.TrackerEvent.TrackerEventType;
-import com.datatorrent.common.util.BaseOperator;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
- * <p>Tracker class.</p>
+ * <p>
+ * Tracker class.
+ * </p>
  *
  * @since 1.0.0
  */
 public class Tracker extends IdleWindowCounter
 {
-  
+
   public static final String ONE_TIME_COPY_DONE_FILE = "IngestionApp.complete";
-  
+
   Map<String, MutableInt> fileMap = new HashMap<String, MutableInt>();
   transient String oneTimeCopySignal;
   protected transient FileSystem appFS;
-  private boolean fileCreated ;
-  private boolean oneTimeCopy ;
+  private boolean fileCreated;
+  private boolean oneTimeCopy;
   protected String blocksDir;
   Map<String, ExtendedModuleFileMetaData> metricsFileMap = new HashMap<String, ExtendedModuleFileMetaData>();
   CircularFifoBuffer queue = new CircularFifoBuffer(100);
@@ -53,7 +57,7 @@ public class Tracker extends IdleWindowCounter
   private static final String STATUS_METRICS_STATUS = "Status";
   private static final String STATUS_METRICS_COUNT = "Count";
   private static final String STATUS_METRICS_TOTAL_SIZE = "Total Size (MB)";
-  
+
   private static final String FILEDETAILS_METRICS_NAME = "Name";
   private static final String FILEDETAILS_METRICS_OUT_PATH = "Output Path";
   private static final String FILEDETAILS_METRICS_SIZE = "Size (MB)";
@@ -62,33 +66,32 @@ public class Tracker extends IdleWindowCounter
   private static final String FILEDETAILS_METRICS_ENC_TIME = "Encryption Time (sec)";
   private static final String FILEDETAILS_METRICS_OVERALL_TIME = "Overall Time (sec)";
   private static final String FILEDETAILS_METRICS_STATUS = "Status";
-  
-  
+
   private static final int DEFAULT_TIMEOUT_WINDOW_COUNT = 120;
-  
+
   public final transient DefaultOutputPort<TrackerEvent> trackerEventOutPort = new DefaultOutputPort<TrackerEvent>();
-  
+
   public final transient DefaultOutputPort<List<Map<String, Object>>> statusMetrics = new DefaultOutputPort<List<Map<String, Object>>>();
-  public final transient DefaultOutputPort<List<Map<String, Object>>> fileDetailsMetrics = new DefaultOutputPort<List<Map<String,Object>>>();
-  
+  public final transient DefaultOutputPort<List<Map<String, Object>>> fileDetailsMetrics = new DefaultOutputPort<List<Map<String, Object>>>();
+
   @AutoMetric
   private int remainingFileCounts;
-  
+
   @Override
   public void setup(com.datatorrent.api.Context.OperatorContext context)
-  {   
+  {
     try {
       appFS = getFileSystem(context);
     } catch (IOException e) {
       throw new RuntimeException("Unable to get FileSystem instance.", e);
     }
-    
+
     blocksDir = context.getValue(DAGContext.APPLICATION_PATH) + Path.SEPARATOR + BlockWriter.SUBDIR_BLOCKS;
     oneTimeCopySignal = context.getValue(DAGContext.APPLICATION_PATH) + Path.SEPARATOR + ONE_TIME_COPY_DONE_FILE;
   }
-  
 
-  public final transient DefaultInputPort<FileMetadata> inputFileSplitter = new DefaultInputPort<FileMetadata>() {
+  public final transient DefaultInputPort<FileMetadata> inputFileSplitter = new DefaultInputPort<FileMetadata>()
+  {
 
     @Override
     public void process(FileMetadata tuple)
@@ -99,7 +102,8 @@ public class Tracker extends IdleWindowCounter
     }
   };
 
-  public final transient DefaultInputPort<ExtendedModuleFileMetaData> inputFileMerger = new DefaultInputPort<ExtendedModuleFileMetaData>() {
+  public final transient DefaultInputPort<ExtendedModuleFileMetaData> inputFileMerger = new DefaultInputPort<ExtendedModuleFileMetaData>()
+  {
 
     @Override
     public void process(ExtendedModuleFileMetaData tuple)
@@ -110,7 +114,7 @@ public class Tracker extends IdleWindowCounter
       LOG.debug("File copied successfully: {}", tuple.getFilePath());
     }
   };
-  
+
   @Override
   public void beginWindow(long windowId)
   {
@@ -145,7 +149,8 @@ public class Tracker extends IdleWindowCounter
   }
 
   /**
-   * Check if tracker has more files in progress  
+   * Check if tracker has more files in progress
+   * 
    * @see com.datatorrent.apps.ingestion.common.IdleWindowCounter#hasMoreWork()
    */
   @Override
@@ -153,9 +158,10 @@ public class Tracker extends IdleWindowCounter
   {
     return !fileMap.isEmpty();
   }
-  
+
   /**
    * Send Shutdown signal if idle Window Threshold is Reached
+   * 
    * @see com.datatorrent.apps.ingestion.common.IdleWindowCounter#idleWindowThresholdReached()
    */
   @Override
@@ -167,7 +173,7 @@ public class Tracker extends IdleWindowCounter
       throw new RuntimeException("Unable to send shutdown signal.", e);
     }
   }
-  
+
   @Override
   protected int getIdleWindowThresholdDefault()
   {
@@ -203,7 +209,7 @@ public class Tracker extends IdleWindowCounter
 
   private void decrementFileCount(ExtendedModuleFileMetaData tuple)
   {
-    String filePath = tuple.getFilePath(); 
+    String filePath = tuple.getFilePath();
     MutableInt count = fileMap.get(filePath);
     if (count == null) {
       throw new RuntimeException("Tuple from FileMerger came before tuple from FileSplitter: " + tuple);
@@ -218,7 +224,7 @@ public class Tracker extends IdleWindowCounter
     }
     LOG.debug("Removing: file: {}, map size: {}", tuple, fileMap.size());
   }
-  
+
   @Override
   public void endWindow()
   {
@@ -231,35 +237,32 @@ public class Tracker extends IdleWindowCounter
   {
     List<Map<String, Object>> toBeEmitted = Lists.newArrayList();
     Object[] array = queue.toArray();
-    for (int i=(array.length-1); i>=0; --i) {
-      ExtendedModuleFileMetaData meta = metricsFileMap.get((String) array[i]);
+    for (int i = (array.length - 1); i >= 0; --i) {
+      ExtendedModuleFileMetaData meta = metricsFileMap.get((String)array[i]);
       Map<String, Object> m = Maps.newHashMap();
       m.put(FILEDETAILS_METRICS_NAME, meta.isDirectory() ? meta.getFileName() + "/" : meta.getFileName());
       m.put(FILEDETAILS_METRICS_OUT_PATH, meta.getOutputRelativePath());
-      m.put(FILEDETAILS_METRICS_SIZE, (double) (meta.getFileLength() / 1024.0 / 1024.0));
+      m.put(FILEDETAILS_METRICS_SIZE, (double)(meta.getFileLength() / 1024.0 / 1024.0));
       //TODO: Uncomment following to support compression, encryption related metrics
-//      
-//      m.put(FILEDETAILS_METRICS_COMPR_RATIO,
-//            meta.isDirectory() ? "-" : meta.getOutputFileSize() == 0 ? "1.0" : NumberFormat.getNumberInstance().format(1.0 * meta.getOutputFileSize() / meta.getFileLength()));
-//      m.put(FILEDETAILS_METRICS_COMPR_TIME, 
-//            meta.getCompressionTime() == 0 ? "-" : NumberFormat.getNumberInstance().format(meta.getCompressionTime() / 1000.0 / 1000.0 / 1000.0));
-//      m.put(FILEDETAILS_METRICS_ENC_TIME, 
-//            meta.getEncryptionTime() == 0 ? "-" : NumberFormat.getNumberInstance().format(meta.getEncryptionTime() / 1000.0 / 1000.0 / 1000.0));
-//      
-      m.put(FILEDETAILS_METRICS_OVERALL_TIME, 
-            (meta.getCompletionTime() == 0) ? "-" : NumberFormat.getNumberInstance().format((meta.getCompletionTime() - meta.getDiscoverTime()) / 1000.0));
-      
+      //      
+      //      m.put(FILEDETAILS_METRICS_COMPR_RATIO,
+      //            meta.isDirectory() ? "-" : meta.getOutputFileSize() == 0 ? "1.0" : NumberFormat.getNumberInstance().format(1.0 * meta.getOutputFileSize() / meta.getFileLength()));
+      //      m.put(FILEDETAILS_METRICS_COMPR_TIME, 
+      //            meta.getCompressionTime() == 0 ? "-" : NumberFormat.getNumberInstance().format(meta.getCompressionTime() / 1000.0 / 1000.0 / 1000.0));
+      //      m.put(FILEDETAILS_METRICS_ENC_TIME, 
+      //            meta.getEncryptionTime() == 0 ? "-" : NumberFormat.getNumberInstance().format(meta.getEncryptionTime() / 1000.0 / 1000.0 / 1000.0));
+      //      
+      m.put(FILEDETAILS_METRICS_OVERALL_TIME, (meta.getCompletionTime() == 0) ? "-"
+          : NumberFormat.getNumberInstance().format((meta.getCompletionTime() - meta.getDiscoverTime()) / 1000.0));
+
       String status = "Unknown";
       if (meta.getCompletionStatus() == TrackerEventType.DISCOVERED) {
         status = "Discovered";
-      }
-      else if (meta.getCompletionStatus() == TrackerEventType.SUCCESSFUL_FILE) {
+      } else if (meta.getCompletionStatus() == TrackerEventType.SUCCESSFUL_FILE) {
         status = "Successful";
-      }
-      else if (meta.getCompletionStatus() == TrackerEventType.SKIPPED_FILE) {
+      } else if (meta.getCompletionStatus() == TrackerEventType.SKIPPED_FILE) {
         status = "Skipped";
-      }
-      else if (meta.getCompletionStatus() == TrackerEventType.FAILED_FILE) {
+      } else if (meta.getCompletionStatus() == TrackerEventType.FAILED_FILE) {
         status = "Failed";
       }
       m.put(FILEDETAILS_METRICS_STATUS, status);
@@ -271,31 +274,28 @@ public class Tracker extends IdleWindowCounter
   private void sendFileStatus()
   {
     if (!metricsFileMap.isEmpty()) {
-      String[] status = new String[]{"Remaining Items", "Successful Items", "Skipped Items", "Failed Items"};
+      String[] status = new String[] { "Remaining Items", "Successful Items", "Skipped Items", "Failed Items" };
       int count[] = new int[status.length];
       long sizes[] = new long[status.length];
-      
+
       for (ExtendedModuleFileMetaData meta : metricsFileMap.values()) {
         if (meta.getCompletionStatus() == TrackerEventType.DISCOVERED) {
           count[0]++;
           sizes[0] += meta.getFileLength();
-        }
-        else if (meta.getCompletionStatus() == TrackerEventType.SUCCESSFUL_FILE) {
+        } else if (meta.getCompletionStatus() == TrackerEventType.SUCCESSFUL_FILE) {
           count[1]++;
           sizes[1] += meta.getFileLength();
-        }
-        else if (meta.getCompletionStatus() == TrackerEventType.SKIPPED_FILE) {
+        } else if (meta.getCompletionStatus() == TrackerEventType.SKIPPED_FILE) {
           count[2]++;
           sizes[2] += meta.getFileLength();
-        }
-        else if (meta.getCompletionStatus() == TrackerEventType.FAILED_FILE) {
+        } else if (meta.getCompletionStatus() == TrackerEventType.FAILED_FILE) {
           count[3]++;
           sizes[3] += meta.getFileLength();
         }
       }
-      
+
       List<Map<String, Object>> toBeEmitted = Lists.newArrayList();
-      for (int i=0; i<4; i++) {
+      for (int i = 0; i < 4; i++) {
         Map<String, Object> m = Maps.newHashMap();
         m.put(STATUS_METRICS_STATUS, status[i]);
         m.put(STATUS_METRICS_COUNT, count[i]);
@@ -325,7 +325,6 @@ public class Tracker extends IdleWindowCounter
     this.oneTimeCopy = oneTimeCopy;
   }
 
-  
   public String getBlocksDir()
   {
     return blocksDir;
@@ -336,21 +335,23 @@ public class Tracker extends IdleWindowCounter
     this.blocksDir = blocksDir;
   }
 
-  public final transient DefaultInputPort<TrackerEvent> fileSplitterTracker = new DefaultInputPort<TrackerEvent>() {
+  public final transient DefaultInputPort<TrackerEvent> fileSplitterTracker = new DefaultInputPort<TrackerEvent>()
+  {
     @Override
     public void process(TrackerEvent event)
     {
       trackerEventOutPort.emit(event);
     }
   };
-  
-  public final transient DefaultInputPort<TrackerEvent> mergerTracker = new DefaultInputPort<TrackerEvent>() {
+
+  public final transient DefaultInputPort<TrackerEvent> mergerTracker = new DefaultInputPort<TrackerEvent>()
+  {
     @Override
     public void process(TrackerEvent event)
     {
       trackerEventOutPort.emit(event);
     }
-  };  
-  
+  };
+
   private static final Logger LOG = LoggerFactory.getLogger(Tracker.class);
 }

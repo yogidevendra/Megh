@@ -13,21 +13,17 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 
-import org.apache.commons.lang.mutable.MutableLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.commons.lang.mutable.MutableLong;
 
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
-import com.datatorrent.lib.io.output.CipherProvider;
-import com.datatorrent.lib.io.output.DTCipherOutputStream;
-import com.datatorrent.lib.io.output.SymmetricKeyManager;
 import com.datatorrent.lib.io.fs.FilterStreamCodec.GZipFilterStreamProvider;
 import com.datatorrent.lib.io.fs.FilterStreamContext;
 import com.datatorrent.lib.io.fs.FilterStreamProvider;
-
 
 /**
  * Stream providers required for ingestion
@@ -38,7 +34,7 @@ public class FilterStreamProviders
 {
   public static final String AES_TRANSOFRMATION = "AES/ECB/PKCS5Padding";
   public static final String RSA_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
-  
+
   /**
    * Wrapper over GZIPOutputStream to measure time taken for compression.
    */
@@ -47,10 +43,10 @@ public class FilterStreamProviders
     MutableLong timeTakenNano;
     private long streamTimeNanos;
     private long streamSizeBytes;
-    
+
     /**
      * @param out
-     * @param timeTakenNano 
+     * @param timeTakenNano
      * @throws IOException
      */
     public TimedGZIPOutputStream(OutputStream out, MutableLong timeTakenNano) throws IOException
@@ -61,7 +57,9 @@ public class FilterStreamProviders
     }
 
     /**
-     * Calls write on underlying GZIPOutputStream. Records time taken in executing the write call.
+     * Calls write on underlying GZIPOutputStream. Records time taken in
+     * executing the write call.
+     * 
      * @see java.util.zip.GZIPOutputStream#write(byte[], int, int)
      */
     @Override
@@ -81,7 +79,7 @@ public class FilterStreamProviders
       long startTime = System.nanoTime();
       super.finish();
       long endTime = System.nanoTime();
-      streamTimeNanos += (endTime - startTime); 
+      streamTimeNanos += (endTime - startTime);
     }
 
     public long getStreamTimeNanos()
@@ -94,8 +92,7 @@ public class FilterStreamProviders
       return streamSizeBytes;
     }
   }
-  
-  
+
   /**
    * Stream context for TimedGZIPOutputStream
    */
@@ -105,7 +102,7 @@ public class FilterStreamProviders
     {
       filterStream = new TimedGZIPOutputStream(outputStream, timeTakenNano);
     }
-    
+
     @Override
     public void finalizeContext() throws IOException
     {
@@ -127,7 +124,7 @@ public class FilterStreamProviders
     {
       timeTakenNano = new MutableLong();
     }
-    
+
     @Override
     public FilterStreamContext<GZIPOutputStream> getFilterStreamContext(OutputStream outputStream) throws IOException
     {
@@ -137,9 +134,9 @@ public class FilterStreamProviders
 
     public long getTimeTaken()
     {
-      return timeTakenNano.longValue()/1000;
+      return timeTakenNano.longValue() / 1000;
     }
-    
+
     /**
      * @return the timeTakenNano
      */
@@ -147,9 +144,10 @@ public class FilterStreamProviders
     {
       return timeTakenNano;
     }
-    
+
     /**
-     * @param timeTakenNano the timeTakenNano to set
+     * @param timeTakenNano
+     *          the timeTakenNano to set
      */
     public void setTimeTakenNano(MutableLong timeTakenNano)
     {
@@ -157,7 +155,6 @@ public class FilterStreamProviders
     }
   }
 
-  
   /**
    * Wrapper over CipherOutputStream to measure time taken for encryption
    */
@@ -172,7 +169,9 @@ public class FilterStreamProviders
     }
 
     /**
-     * Calls write on underlying CipherOutputStream. Records time taken in executing the write call.
+     * Calls write on underlying CipherOutputStream. Records time taken in
+     * executing the write call.
+     * 
      * @see java.util.zip.CipherOutputStream#write(byte[], int, int)
      */
     @Override
@@ -181,7 +180,7 @@ public class FilterStreamProviders
       long startTime = System.nanoTime();
       super.write(buf, off, len);
       long endTime = System.nanoTime();
-      
+
       timeTakenNano += (endTime - startTime);
     }
 
@@ -192,23 +191,26 @@ public class FilterStreamProviders
     {
       return timeTakenNano;
     }
-    
+
     /**
      * @return the timeTaken
      */
     public long getTimeTaken()
     {
-      return timeTakenNano/1000;
+      return timeTakenNano / 1000;
     }
 
   }
 
   /**
-   * This filter should be used when cipher cannot be reused for example when writing to different output streams
+   * This filter should be used when cipher cannot be reused for example when
+   * writing to different output streams
    */
-  public static class CipherFilterStreamContext extends FilterStreamContext.BaseFilterStreamContext<DTCipherOutputStream>
+  public static class CipherFilterStreamContext
+      extends FilterStreamContext.BaseFilterStreamContext<DTCipherOutputStream>
   {
-    public CipherFilterStreamContext(OutputStream outputStream, Cipher cipher, EncryptionMetaData metadata) throws IOException
+    public CipherFilterStreamContext(OutputStream outputStream, Cipher cipher, EncryptionMetaData metadata)
+        throws IOException
     {
       filterStream = new DTCipherOutputStream(outputStream, cipher, metadata);
     }
@@ -216,18 +218,20 @@ public class FilterStreamProviders
 
   /**
    * Filter StreamContext for TimedCipherOutputStream
+   * 
    * @see CipherFilterStreamContext
    */
   public static class TimedCipherFilterStreamContext extends CipherFilterStreamContext
   {
-    public TimedCipherFilterStreamContext(OutputStream outputStream, Cipher cipher, EncryptionMetaData metadata) throws IOException
+    public TimedCipherFilterStreamContext(OutputStream outputStream, Cipher cipher, EncryptionMetaData metadata)
+        throws IOException
     {
       super(outputStream, cipher, metadata);
     }
   }
-  
-  
-  public static class TimedCipherStreamProvider extends FilterStreamProvider.SimpleFilterReusableStreamProvider<DTCipherOutputStream, OutputStream>
+
+  public static class TimedCipherStreamProvider
+      extends FilterStreamProvider.SimpleFilterReusableStreamProvider<DTCipherOutputStream, OutputStream>
   {
     transient TimedCipherFilterStreamContext streamContext;
     @Bind(JavaSerializer.class)
@@ -246,7 +250,8 @@ public class FilterStreamProviders
     }
 
     @Override
-    protected FilterStreamContext<DTCipherOutputStream> createFilterStreamContext(OutputStream outputStream) throws IOException
+    protected FilterStreamContext<DTCipherOutputStream> createFilterStreamContext(OutputStream outputStream)
+        throws IOException
     {
       EncryptionMetaData metaData = new EncryptionMetaData();
       metaData.setTransformation(transformation);
@@ -285,9 +290,9 @@ public class FilterStreamProviders
 
     public long getTimeTaken()
     {
-      return ((TimedCipherOutputStream) streamContext.getFilterStream()).getTimeTaken();
+      return ((TimedCipherOutputStream)streamContext.getFilterStream()).getTimeTaken();
     }
   }
-  
+
   private static final Logger LOG = LoggerFactory.getLogger(FilterStreamProviders.class);
 }

@@ -1,3 +1,8 @@
+/*
+ *  Copyright (c) 2015 DataTorrent, Inc.
+ *  All Rights Reserved.
+ */
+
 package com.datatorrent.lib.io.output;
 
 import java.security.Key;
@@ -6,7 +11,9 @@ import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 /**
- * <p>CryptoInformation class.</p>
+ * <p>
+ * CryptoInformation class.
+ * </p>
  *
  * @since 1.0.0
  */

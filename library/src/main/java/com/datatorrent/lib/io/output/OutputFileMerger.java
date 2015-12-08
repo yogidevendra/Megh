@@ -27,37 +27,36 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.lib.io.output.OutputFileMetaData.OutputBlock;
 
 /**
- * This is generic File Merger which can be used to merge data from different files into single output file.
- * OutputFileMetaData defines constituents of the output file.
+ * This is generic File Merger which can be used to merge data from different
+ * files into single output file. OutputFileMetaData defines constituents of the
+ * output file.
  *
  * @since 1.0.0
  */
-public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReconciler<T,T>
+public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReconciler<T, T>
 {
   protected transient FileSystem appFS, outputFS;
 
   @NotNull
   protected String filePath;
   transient protected String blocksDir;
-  
+
   protected transient Context.OperatorContext context;
 
   protected static final String PART_FILE_EXTENTION = "._COPYING_";
 
-  protected Queue<T> successfulFiles= Queues.newLinkedBlockingQueue();
-  protected Queue<T> skippedFiles= Queues.newLinkedBlockingQueue();
-  protected Queue<T> failedFiles= Queues.newLinkedBlockingQueue();
-  
+  protected Queue<T> successfulFiles = Queues.newLinkedBlockingQueue();
+  protected Queue<T> skippedFiles = Queues.newLinkedBlockingQueue();
+  protected Queue<T> failedFiles = Queues.newLinkedBlockingQueue();
+
   public final transient DefaultOutputPort<T> completedFilesMetaOutput = new DefaultOutputPort<T>();
   private boolean writeChecksum = true;
   transient Path tempOutFilePath;
-  
-  
+
   @Override
   public void setup(Context.OperatorContext context)
   {
     this.context = context;
-    
 
     blocksDir = context.getValue(DAGContext.APPLICATION_PATH) + Path.SEPARATOR + BlockWriter.SUBDIR_BLOCKS;
 
@@ -80,7 +79,7 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
 
     super.setup(context); // Calling it at the end as the reconciler thread uses resources allocated above.
   }
-  
+
   /* 
    * Calls super.endWindow() and sets counters 
    * @see com.datatorrent.api.BaseOperator#endWindow()
@@ -97,15 +96,16 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
       // and then reconciler thread add that in doneTuples 
       if (successfulFiles.contains(tuple)) {
         successfulFiles.remove(tuple);
-        LOG.debug("File copy successful: {}", tuple.getOutputRelativePath());        
-      }else if(skippedFiles.contains(tuple)) {
+        LOG.debug("File copy successful: {}", tuple.getOutputRelativePath());
+      } else if (skippedFiles.contains(tuple)) {
         skippedFiles.remove(tuple);
         LOG.debug("File copy skipped: {}", tuple.getOutputRelativePath());
-      }else if(failedFiles.contains(tuple)){
+      } else if (failedFiles.contains(tuple)) {
         failedFiles.remove(tuple);
         LOG.debug("File copy failed: {}", tuple.getOutputRelativePath());
       } else {
-        throw new RuntimeException("Tuple present in doneTuples but not in successfulFiles: " + tuple.getOutputRelativePath());
+        throw new RuntimeException(
+            "Tuple present in doneTuples but not in successfulFiles: " + tuple.getOutputRelativePath());
       }
       completedFilesMetaOutput.emit(tuple);
       committedTuples.remove(tuple);
@@ -122,7 +122,6 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
   {
     return FileSystem.newInstance((new Path(filePath)).toUri(), new Configuration());
   }
-
 
   @Override
   public void teardown()
@@ -169,8 +168,9 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
   }
 
   /**
-   * Read data from block files and write to output file.
-   * Information about which block files should be read is specified in outFileMetadata
+   * Read data from block files and write to output file. Information about
+   * which block files should be read is specified in outFileMetadata
+   * 
    * @param outFileMetadata
    * @return
    * @throws IOException
@@ -182,18 +182,20 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
     successfulFiles.add(outFileMetadata);
     LOG.debug("Completed processing file: {} ", outFileMetadata.getOutputRelativePath());
   }
-  
+
   protected void mergeBlocks(T outFileMetadata) throws IOException
   {
     //when writing to tmp files there can be vagrant tmp files which we have to clean
     final Path dst = new Path(filePath, outFileMetadata.getOutputRelativePath());
-    PathFilter tempFileFilter = new PathFilter()  {
-      @Override public boolean accept(Path path)
+    PathFilter tempFileFilter = new PathFilter()
+    {
+      @Override
+      public boolean accept(Path path)
       {
         return path.getName().startsWith(dst.getName()) && path.getName().endsWith(PART_FILE_EXTENTION);
       }
     };
-    if(outputFS.exists(dst.getParent())) {
+    if (outputFS.exists(dst.getParent())) {
       FileStatus[] statuses = outputFS.listStatus(dst.getParent(), tempFileFilter);
       for (FileStatus status : statuses) {
         String statusName = status.getPath().getName();
@@ -201,18 +203,21 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
         outputFS.delete(status.getPath(), true);
       }
     }
-    tempOutFilePath = new Path(filePath, outFileMetadata.getOutputRelativePath() + '.' + System.currentTimeMillis() + PART_FILE_EXTENTION);
+    tempOutFilePath = new Path(filePath,
+        outFileMetadata.getOutputRelativePath() + '.' + System.currentTimeMillis() + PART_FILE_EXTENTION);
     try {
       writeTempOutputFile(outFileMetadata);
       moveToFinalFile(outFileMetadata);
     } catch (BlockNotFoundException e) {
-      LOG.info("Block file {} not found. Assuming recovery mode for file {}. ", e.getBlockPath(), outFileMetadata.getOutputRelativePath());
+      LOG.info("Block file {} not found. Assuming recovery mode for file {}. ", e.getBlockPath(),
+          outFileMetadata.getOutputRelativePath());
       //Remove temp output file
       outputFS.delete(tempOutFilePath, false);
     }
   }
-  
-  protected OutputStream writeTempOutputFile(T outFileMetadata) throws IOException, BlockNotFoundException{
+
+  protected OutputStream writeTempOutputFile(T outFileMetadata) throws IOException, BlockNotFoundException
+  {
     OutputStream outputStream = getOutputStream(tempOutFilePath);
     try {
       for (OutputBlock outputBlock : outFileMetadata.getOutputBlocksList()) {
@@ -223,7 +228,7 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
     }
     return outputStream;
   }
-  
+
   protected OutputStream getOutputStream(Path partFilePath) throws IOException
   {
     return outputFS.create(partFilePath);
@@ -234,7 +239,7 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
     Path destination = new Path(filePath, outFileMetadata.getOutputRelativePath());
     moveToFinalFile(tempOutFilePath, destination);
   }
-  
+
   /**
    * 
    * @param tempPartitionFilePath
@@ -245,7 +250,7 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
   {
     Path src = Path.getPathWithoutSchemeAndAuthority(tempOutFilePath);
     Path dst = Path.getPathWithoutSchemeAndAuthority(destination);
-    
+
     boolean moveSuccessful = false;
     if (!outputFS.exists(dst.getParent())) {
       outputFS.mkdirs(dst.getParent());
@@ -258,12 +263,11 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
     if (moveSuccessful) {
       LOG.debug("File {} moved successfully to destination folder.", dst);
       long outFileLength = outputFS.getFileStatus(dst).getLen();
-      
+
     } else {
       throw new RuntimeException("Unable to move file from " + src + " to " + dst);
     }
   }
-  
 
   public String getBlocksDir()
   {
@@ -274,22 +278,21 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
   {
     this.blocksDir = blocksDir;
   }
-  
+
   public String getFilePath()
   {
     return filePath;
   }
-  
+
   public void setFilePath(String filePath)
   {
-	this.filePath = IngestionUtils.convertSchemeToLowerCase(filePath);
+    this.filePath = IngestionUtils.convertSchemeToLowerCase(filePath);
   }
-  
+
   public boolean isWriteChecksum()
   {
     return writeChecksum;
   }
-
 
   public void setWriteChecksum(boolean writeChecksum)
   {
@@ -300,7 +303,6 @@ public class OutputFileMerger<T extends OutputFileMetaData> extends AbstractReco
   {
     TOTAL_DATA_INGESTED;
   }
-
 
   private static final Logger LOG = LoggerFactory.getLogger(OutputFileMerger.class);
 }

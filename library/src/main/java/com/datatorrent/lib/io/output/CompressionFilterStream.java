@@ -1,3 +1,8 @@
+/*
+ *  Copyright (c) 2015 DataTorrent, Inc.
+ *  All Rights Reserved.
+ */
+
 package com.datatorrent.lib.io.output;
 
 import java.io.FilterOutputStream;
@@ -12,7 +17,9 @@ import com.datatorrent.lib.io.fs.FilterStreamContext;
 import com.datatorrent.lib.io.fs.FilterStreamProvider;
 
 /**
- * <p>CompressionFilterStream class.</p>
+ * <p>
+ * CompressionFilterStream class.
+ * </p>
  *
  * @since 1.0.0
  */
@@ -32,7 +39,8 @@ public class CompressionFilterStream
     }
 
     /**
-     * Calls write on underlying FilterOutputStream. Records time taken in executing the write call.
+     * Calls write on underlying FilterOutputStream. Records time taken in
+     * executing the write call.
      */
     @Override
     public synchronized void write(byte[] buffer, int off, int len) throws IOException
@@ -65,17 +73,21 @@ public class CompressionFilterStream
     }
   }
 
-  public static class CompressionFiltertreamContext extends FilterStreamContext.BaseFilterStreamContext<TimedCompressionOutputStream>
+  public static class CompressionFiltertreamContext
+      extends FilterStreamContext.BaseFilterStreamContext<TimedCompressionOutputStream>
   {
-    public CompressionFiltertreamContext(String compressionClassName, OutputStream outputStream, MutableLong timeTakenNano) throws ClassNotFoundException, IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException
+    public CompressionFiltertreamContext(String compressionClassName, OutputStream outputStream,
+        MutableLong timeTakenNano) throws ClassNotFoundException, IllegalAccessException, InvocationTargetException,
+            InstantiationException, NoSuchMethodException
     {
       Constructor c = Class.forName(compressionClassName).getConstructor(OutputStream.class);
-      FilterOutputStream lzoOutputStream = (FilterOutputStream) c.newInstance(outputStream);
+      FilterOutputStream lzoOutputStream = (FilterOutputStream)c.newInstance(outputStream);
       this.filterStream = new TimedCompressionOutputStream(lzoOutputStream, timeTakenNano);
     }
   }
 
-  public static class CompressionFilterStreamProvider extends FilterStreamProvider.SimpleFilterReusableStreamProvider<TimedCompressionOutputStream, OutputStream>
+  public static class CompressionFilterStreamProvider
+      extends FilterStreamProvider.SimpleFilterReusableStreamProvider<TimedCompressionOutputStream, OutputStream>
   {
     private String compressorClassName;
     private MutableLong timeTakenNano;

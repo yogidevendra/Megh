@@ -10,32 +10,29 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.commons.lang.mutable.MutableLong;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
 
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.DefaultPartition;
 import com.datatorrent.api.Partitioner;
-import com.datatorrent.lib.io.output.FilterStreamProviders;
-import com.datatorrent.lib.io.output.FilterStreamProviders.TimedGZIPOutputStream;
-import com.datatorrent.lib.io.output.FilterStreamProviders.TimedGZipFilterStreamProvider;
-import com.datatorrent.lib.io.output.CompressionFilterStream.CompressionFilterStreamProvider;
-import com.datatorrent.lib.io.output.CompressionFilterStream.TimedCompressionOutputStream;
 import com.datatorrent.lib.counters.BasicCounters;
 import com.datatorrent.lib.io.block.AbstractBlockReader;
-import com.datatorrent.lib.io.block.AbstractBlockReader.ReaderRecord;
 import com.datatorrent.lib.io.block.BlockMetadata;
 import com.datatorrent.lib.io.fs.AbstractFileOutputOperator;
 import com.datatorrent.lib.io.fs.FilterStreamContext;
+import com.datatorrent.lib.io.output.CompressionFilterStream.TimedCompressionOutputStream;
+import com.datatorrent.lib.io.output.FilterStreamProviders.TimedGZIPOutputStream;
 import com.datatorrent.netlet.util.Slice;
-import com.google.common.collect.Lists;
 
 /**
  * Writes a block to the fs.
@@ -43,12 +40,12 @@ import com.google.common.collect.Lists;
  * @author Yogi/Sandeep
  * @since 1.0.0
  */
-public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.ReaderRecord<Slice>> implements
-  Partitioner<BlockWriter>
+public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.ReaderRecord<Slice>>
+    implements Partitioner<BlockWriter>
 {
   public static final String SUBDIR_BLOCKS = "blocks";
   private transient List<BlockMetadata.FileBlockMetadata> blockMetadatas;
-  
+
   public final transient DefaultInputPort<BlockMetadata.FileBlockMetadata> blockMetadataInput = new DefaultInputPort<BlockMetadata.FileBlockMetadata>()
   {
     @Override
@@ -83,7 +80,7 @@ public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.
     super.endWindow();
 
     setFilterStreamTimingCounters();
-    
+
     streamsCache.asMap().clear();
     endOffsets.clear();
 
@@ -100,21 +97,21 @@ public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.
 
   private void setFilterStreamTimingCounters()
   {
-    if(filterStreamProvider != null){
+    if (filterStreamProvider != null) {
       for (BlockMetadata.FileBlockMetadata blockMetadata : blockMetadatas) {
         FilterOutputStream filterStream;
         try {
-          filterStream = ((FilterStreamContext<FilterOutputStream>)streamsCache.get(Long.toString(blockMetadata.getBlockId()))).getFilterStream();
+          filterStream = ((FilterStreamContext<FilterOutputStream>)streamsCache
+              .get(Long.toString(blockMetadata.getBlockId()))).getFilterStream();
         } catch (ExecutionException e) {
           throw new RuntimeException();
         }
         long timeTakenNanos = 0;
         if ((filterStream != null) && (filterStream instanceof TimedGZIPOutputStream)) {
-          TimedGZIPOutputStream stream = (TimedGZIPOutputStream) filterStream;
+          TimedGZIPOutputStream stream = (TimedGZIPOutputStream)filterStream;
           timeTakenNanos += stream.getStreamTimeNanos();
-        }
-        else if ((filterStream != null) && (filterStream instanceof TimedCompressionOutputStream)) {
-          TimedCompressionOutputStream stream = (TimedCompressionOutputStream) filterStream;
+        } else if ((filterStream != null) && (filterStream instanceof TimedCompressionOutputStream)) {
+          TimedCompressionOutputStream stream = (TimedCompressionOutputStream)filterStream;
           timeTakenNanos += stream.getStreamTimeNanos();
         }
         //TODO: Uncomment following line and enable compressionTime field over 
@@ -139,14 +136,15 @@ public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.
   private static final Logger LOG = LoggerFactory.getLogger(BlockWriter.class);
 
   @Override
-  public Collection<Partition<BlockWriter>> definePartitions(Collection<Partition<BlockWriter>> partitions, PartitioningContext context)
+  public Collection<Partition<BlockWriter>> definePartitions(Collection<Partition<BlockWriter>> partitions,
+      PartitioningContext context)
   {
     if (context.getParallelPartitionCount() == 0) {
       return partitions;
     }
 
     // if there is no change of count, return the same collection
-    if(context.getParallelPartitionCount() == partitions.size()){
+    if (context.getParallelPartitionCount() == partitions.size()) {
       LOG.debug("no change is partition count: " + partitions.size());
       return partitions;
     }
@@ -164,8 +162,7 @@ public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.
         deletedCounters.add(toRemove.getPartitionedInstance().fileCounters);
         partitionIterator.remove();
       }
-    }
-    else {
+    } else {
       //Add more partitions
       BlockWriter anOperator = partitions.iterator().next().getPartitionedInstance();
 
@@ -187,8 +184,10 @@ public class BlockWriter extends AbstractFileOutputOperator<AbstractBlockReader.
   /**
    * Transfers the counters in partitioning.
    *
-   * @param target target counter
-   * @param source removed counter
+   * @param target
+   *          target counter
+   * @param source
+   *          removed counter
    */
   protected void addCounters(BasicCounters<MutableLong> target, BasicCounters<MutableLong> source)
   {

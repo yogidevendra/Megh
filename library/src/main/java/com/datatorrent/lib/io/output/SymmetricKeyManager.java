@@ -1,3 +1,8 @@
+/*
+ *  Copyright (c) 2015 DataTorrent, Inc.
+ *  All Rights Reserved.
+ */
+
 package com.datatorrent.lib.io.output;
 
 import java.security.InvalidKeyException;
@@ -49,7 +54,8 @@ public class SymmetricKeyManager
   /**
    * Generates secret from given key bytes
    *
-   * @param key key bytes
+   * @param key
+   *          key bytes
    */
   public Key generateKey(byte[] key)
   {
@@ -59,8 +65,11 @@ public class SymmetricKeyManager
   /**
    * Generates secret from given key bytes
    *
-   * @param key key bytes
-   * @param algorithm the name of the secret-key algorithm to be associated with the given key material.
+   * @param key
+   *          key bytes
+   * @param algorithm
+   *          the name of the secret-key algorithm to be associated with the
+   *          given key material.
    */
   public Key generateKey(byte[] key, String algorithm)
   {

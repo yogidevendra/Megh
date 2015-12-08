@@ -8,23 +8,27 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang.mutable.MutableLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.commons.lang.mutable.MutableLong;
+
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
-import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
 import com.datatorrent.common.util.BaseOperator;
 import com.datatorrent.lib.counters.BasicCounters;
 import com.datatorrent.lib.io.block.BlockMetadata;
 import com.datatorrent.lib.io.input.FileSplitterInput;
+import com.datatorrent.lib.io.input.ModuleFileSplitter.ModuleFileMetaData;
 
 /**
- * <p>Synchronizer class.</p>
+ * <p>
+ * Synchronizer class.
+ * </p>
  *
  * @author Yogi/Sandeep
  * @since 1.0.0
@@ -69,7 +73,7 @@ public class Synchronizer extends BaseOperator
     public void process(FileSplitterInput.FileMetadata fmd)
     {
       ExtendedModuleFileMetaData fileMetadata = null;
-      
+
       if (fmd instanceof ModuleFileMetaData) {
         fileMetadata = new ExtendedModuleFileMetaData((ModuleFileMetaData)fmd);
       }
@@ -77,11 +81,12 @@ public class Synchronizer extends BaseOperator
       if (null == fileMetadata) {
         throw new RuntimeException("Input tuple is not an instance of IngestionFileMetaData.");
       }
-      
+
       String filePath = fileMetadata.getFilePath();
       Set<Long> activeBlocks = Sets.newHashSet();
       long[] blockIds = fileMetadata.getBlockIds();
-      LOG.debug("received file {} with total number of blocks {} with blockIds {}", filePath, fileMetadata.getNumberOfBlocks(), Arrays.toString(blockIds));
+      LOG.debug("received file {} with total number of blocks {} with blockIds {}", filePath,
+          fileMetadata.getNumberOfBlocks(), Arrays.toString(blockIds));
       for (int i = 0; i < fileMetadata.getNumberOfBlocks(); i++) {
         activeBlocks.add(blockIds[i]);
       }
@@ -98,8 +103,7 @@ public class Synchronizer extends BaseOperator
         counters.getCounter(FileProcessingCounters.PROCESSING_TIME).add(fileProcessingTime);
         trigger.emit(fileMetadata);
         LOG.debug("Total time taken to process the file {} is {} ms", fileMetadata.getFilePath(), fileProcessingTime);
-      }
-      else {
+      } else {
         fileMetadataMap.put(filePath, fileMetadata);
         fileToActiveBlockMap.put(filePath, activeBlocks);
       }
@@ -130,8 +134,7 @@ public class Synchronizer extends BaseOperator
           LOG.debug("Total time taken to process the file {} is {} ms", fileMetadata.getFilePath(), fileProcessingTime);
           fileToActiveBlockMap.remove(filePath);
         }
-      }
-      else {
+      } else {
         Set<Long> completedBlocks = fileToCompetedBlockMap.get(filePath);
         if (completedBlocks == null) {
           completedBlocks = Sets.newHashSet();

@@ -5,33 +5,38 @@
 package com.datatorrent.lib.io.output;
 
 /**
- * <p>TrackerEvent class.</p>
+ * <p>
+ * TrackerEvent class.
+ * </p>
  *
  * @since 1.0.0
  */
 public class TrackerEvent
 {
-  public static enum TrackerEventType {
+  public static enum TrackerEventType
+  {
     SUCCESSFUL_FILE, FAILED_FILE, SKIPPED_FILE, INFO, DISCOVERED
   }
-  
-  public interface TrackerEventDetails{
+
+  public interface TrackerEventDetails
+  {
     public String getDescription();
   }
-  
-  public static class StringTrackerEventDetails implements TrackerEventDetails{
+
+  public static class StringTrackerEventDetails implements TrackerEventDetails
+  {
     String description;
-    
+
     public StringTrackerEventDetails()
     {
       // For kryo
     }
-    
+
     public StringTrackerEventDetails(String description)
     {
       this.description = description;
     }
-    
+
     /* (non-Javadoc)
      * @see java.lang.Object#toString()
      */
@@ -50,12 +55,12 @@ public class TrackerEvent
     this.type = type;
     this.details = details;
   }
-  
+
   public TrackerEvent(TrackerEventType type, String description)
   {
-    this(type,new StringTrackerEventDetails(description));
+    this(type, new StringTrackerEventDetails(description));
   }
-  
+
   public TrackerEvent()
   {
     // For kryo
@@ -75,7 +80,7 @@ public class TrackerEvent
   {
     return details;
   }
-  
+
   public void setDetails(TrackerEventDetails details)
   {
     this.details = details;
