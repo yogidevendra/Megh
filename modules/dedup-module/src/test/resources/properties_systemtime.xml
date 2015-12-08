@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<configuration>
+  <property>
+    <name>dt.module.DedupModule.prop.dedupKey</name>
+    <value>{$}.getName() + {$}.getPhone()</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.expiryKey</name>
+    <value>{$}.getDate()</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.isExpiry</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.expiryType</name>
+    <value>SYSTEMTIME</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.expiryPeriod</name>
+    <value>60</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.bucketSpan</name>
+    <value>10</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.useSystemTime</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>dt.module.DedupModule.prop.numBucketsInMemory</name>
+    <value>50</value>
+  </property>
+  <property>
+    <name>dt.module.Converter.pojoSchema</name>
+    <value>com.datatorrent.modules.utils.POJO</value>
+  </property>
+  <property>
+    <name>dt.module.Converter.prop.schemaPath</name>
+    <value>src/test/resources/schema.json</value>
+  </property>
+  <property>
+    <name>dt.operator.Input.prop.usecaseId</name>
+    <value>4</value>
+  </property>
+</configuration>

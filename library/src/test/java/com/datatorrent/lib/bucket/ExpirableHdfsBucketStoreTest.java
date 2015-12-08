@@ -40,6 +40,15 @@ public class ExpirableHdfsBucketStoreTest
       lBucketStore.setConfiguration(7, applicationPath, Sets.newHashSet(0), 0);
       return lBucketStore;
     }
+
+    protected HdfsBucketStore<DummyEvent> getBucketStoreAsync()
+    {
+      ExpirableHdfsBucketStore<DummyEvent> lBucketStore = new ExpirableHdfsBucketStore<DummyEvent>();
+      lBucketStore.setNoOfBuckets(TOTAL_BUCKETS);
+      lBucketStore.setWriteEventKeysOnly(true);
+      lBucketStore.setConfiguration(7, applicationPath, Sets.newHashSet(0), 0);
+      return lBucketStore;
+    }
   }
 
   @Rule
@@ -50,6 +59,38 @@ public class ExpirableHdfsBucketStoreTest
   {
     testMeta.util.storeBucket(0);
     ((BucketStore.ExpirableBucketStore) testMeta.bucketStore).deleteExpiredBuckets(1);
+    Assert.assertTrue(testMeta.util.bucketExists(0));
+  }
+
+  @Test
+  public void testDeletedFilesUpdate() throws Exception
+  {
+    testMeta.util.storeBucket(0);
+    ((BucketStore.ExpirableBucketStore)testMeta.bucketStore).deleteExpiredBuckets(1);
+    Assert.assertTrue(((ExpirableHdfsBucketStore)testMeta.bucketStore).deletedFiles.size() == 1);
+  }
+
+  @Test
+  public void testDeletedSnapshot() throws Exception
+  {
+    testMeta.util.storeBucket(0);
+    ((BucketStore.ExpirableBucketStore)testMeta.bucketStore).deleteExpiredBuckets(1);
+    ((BucketStore.ExpirableBucketStore)testMeta.bucketStore).captureFilesToDelete(10);
+    Assert.assertTrue(((ExpirableHdfsBucketStore)testMeta.bucketStore).deleteSnapshot.size() == 1);
+    Assert.assertTrue(((ExpirableHdfsBucketStore)testMeta.bucketStore).deleteSnapshot.containsKey(10L));
+    Assert.assertTrue(testMeta.util.bucketExists(0));
+  }
+
+  @Test
+  public void testFilesDelete() throws Exception
+  {
+    testMeta.util.storeBucket(0);
+    ((BucketStore.ExpirableBucketStore)testMeta.bucketStore).deleteExpiredBuckets(1);
+    ((BucketStore.ExpirableBucketStore)testMeta.bucketStore).captureFilesToDelete(10);
+    ((BucketStore.ExpirableBucketStore)testMeta.bucketStore).committed(10);
+    Assert.assertTrue(((ExpirableHdfsBucketStore)testMeta.bucketStore).deleteSnapshot.size() == 1);
+    Assert.assertTrue(((ExpirableHdfsBucketStore)testMeta.bucketStore).deleteSnapshot.containsKey(10L));
+    Thread.sleep(10);
     Assert.assertTrue(!testMeta.util.bucketExists(0));
   }
 }

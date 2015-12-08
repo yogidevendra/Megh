@@ -1,0 +1,65 @@
+{
+    "separator": "|",
+    "quoteChar":"\"",
+    "fields": [
+        {
+            "name": "name",
+            "type": "String"
+        },
+        {
+            "name": "phone",
+            "type": "String"
+        },
+        {
+            "name": "email",
+            "type": "String"
+        },
+        {
+            "name": "date",
+            "type": "Date",
+            "constraints" : {
+                "format" : "yyyy-MM-dd HH:mm:ss"
+            }
+        },
+        {
+            "name": "city",
+            "type": "String"
+        },
+        {
+            "name": "pin",
+            "type": "long"
+        },
+        {
+            "name": "country",
+            "type": "String"
+        },
+        {
+            "name": "num1",
+            "type": "long"
+        },
+        {
+            "name": "num2",
+            "type": "double"
+        },
+        {
+            "name": "guid",
+            "type": "String"
+        },
+        {
+            "name": "tag",
+            "type": "String"
+        },
+        {
+            "name": "id",
+            "type": "long"
+        },
+        {
+            "name": "dupId",
+            "type": "long"
+        },
+        {
+            "name": "expId",
+            "type": "long"
+        }
+    ]
+}

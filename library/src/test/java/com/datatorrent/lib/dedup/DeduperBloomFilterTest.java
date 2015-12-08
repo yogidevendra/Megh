@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DAG;
 import com.datatorrent.lib.bucket.AbstractBucket;
-import com.datatorrent.lib.bucket.BucketManagerImpl;
+import com.datatorrent.lib.bucket.AbstractBucketManagerOptimized;
 import com.datatorrent.lib.bucket.DummyEvent;
 import com.datatorrent.lib.bucket.ExpirableHdfsBucketStore;
 import com.datatorrent.lib.bucket.HdfsBucketStore;
@@ -45,7 +45,7 @@ public class DeduperBloomFilterTest
   private static final String APP_ID = "DeduperBloomFilterTest";
   private static final int OPERATOR_ID = 0;
 
-  private static class DummyDeduper extends AbstractBloomFilterDeduper<DummyEvent, DummyEvent>
+  private static class DummyDeduper extends AbstractDeduperOptimized<DummyEvent, DummyEvent>
   {
     @Override
     public void setup(Context.OperatorContext context)
@@ -88,7 +88,7 @@ public class DeduperBloomFilterTest
   }
 
   private static class DummyBucketManagerOptimized extends
-      BucketManagerImpl<DummyEvent>
+      AbstractBucketManagerOptimized.BucketManagerOptimizedImpl<DummyEvent>
   {
     @Override
     public long getBucketKeyFor(DummyEvent event)
