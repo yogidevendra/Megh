@@ -15,7 +15,11 @@ public class ExtendedModuleFileMetaData extends ModuleFileMetaData
   private long compressionTime;
   private long outputFileSize;
   private long encryptionTime;
-
+  
+  public ExtendedModuleFileMetaData(){
+    super();
+  }
+  
   public ExtendedModuleFileMetaData(String currentFile)
   {
     super(currentFile);
