@@ -12,8 +12,8 @@ import com.datatorrent.api.annotation.ApplicationAnnotation;
 import com.datatorrent.module.HDFSInputModule;
 import com.datatorrent.module.io.fs.HDFSFileCopyModule;
 
-@ApplicationAnnotation(name = "HDFSFileCopyModuleDemo")
-public class HDFSFileCopyModuleDemo implements StreamingApplication
+@ApplicationAnnotation(name = "HDFS-HDFS-FileCopy")
+public class Application implements StreamingApplication
 {
   @Override
   public void populateDAG(DAG dag, Configuration conf)
@@ -29,5 +29,5 @@ public class HDFSFileCopyModuleDemo implements StreamingApplication
 
   }
 
-  private static Logger LOG = LoggerFactory.getLogger(HDFSFileCopyModuleDemo.class);
+  private static Logger LOG = LoggerFactory.getLogger(Application.class);
 }
