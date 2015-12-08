@@ -1,4 +1,9 @@
 
+/**
+ * Copyright (c) 2015 DataTorrent, Inc.
+ * All rights reserved.
+ */
+
 package com.datatorrent.module.io.fs;
 
 import java.io.IOException;
