@@ -2,7 +2,7 @@ package com.datatorrent.modules.utils;
 
 import java.util.Date;
 
-public class POJO
+public class POJO123
 {
   public String name;
   public String phone;

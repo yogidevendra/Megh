@@ -19,22 +19,27 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.InputOperator;
 import com.datatorrent.api.StreamingApplication;
 import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.api.DAG.Locality;
 import com.datatorrent.api.annotation.ApplicationAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.datatorrent.lib.io.fs.AbstractFileOutputOperator;
 import com.datatorrent.modules.DedupModule;
 import com.datatorrent.modules.delimitedToPojo.DelimitedToPojoConverterModule;
+import com.datatorrent.modules.utils.BaseDataGenerator;
+import com.datatorrent.modules.utils.OrderedDataGenerator;
+import com.datatorrent.modules.utils.SystemTimeDataGenerator;
+import com.datatorrent.modules.utils.TimeDataGenerator;
 
 
-@ApplicationAnnotation(name = "DedupRobotApp")
-public class DedupRobotApplication implements StreamingApplication
+@ApplicationAnnotation(name = "DedupRobotApp2")
+public class DedupRobotApplication2 implements StreamingApplication
 {
 
   @Override
   public void populateDAG(DAG dag, Configuration conf)
   {
     // Add Operators and Modules
-    FileInputOperator i = dag.addOperator("Input", FileInputOperator.class);
+    Input i = dag.addOperator("Input", Input.class);
     DelimitedToPojoConverterModule converter = dag.addModule("Converter", DelimitedToPojoConverterModule.class);
     DedupModule dedup = dag.addModule("DedupModule", DedupModule.class);
     FileOutputOperator unique = dag.addOperator("Unique", FileOutputOperator.class);
@@ -43,116 +48,88 @@ public class DedupRobotApplication implements StreamingApplication
     FileOutputOperator error = dag.addOperator("Error", FileOutputOperator.class);
 
     // Add streams
-    dag.addStream("Input-Converter", i.output, converter.input);
-    dag.addStream("Converter-Dedup", converter.output, dedup.input);
+    dag.addStream("Input-Converter", i.output, converter.input).setLocality(Locality.THREAD_LOCAL);
+    dag.addStream("Converter-Dedup", converter.output, dedup.input).setLocality(Locality.THREAD_LOCAL);
     dag.addStream("Dedup-Verifier-Unique", dedup.unique, unique.input);
     dag.addStream("Dedup-Verifier-Duplicate", dedup.duplicate, duplicate.input);
     dag.addStream("Dedup-Verifier-Expired", dedup.expired, expired.input);
     dag.addStream("Dedup-Verifier-Error", dedup.error, error.input);
   }
 
-//  public static class Input implements InputOperator
-//  {
-//    public final transient DefaultOutputPort<byte[]> output = new DefaultOutputPort<byte[]>();
-//    private Queue<String> queue;
-//    public int usecaseId;
-////    public String outputPath = "target";
-//    public String generatorScriptLocation = "src/test/resources";
-//    public String baseDataFile = "";
-////    BufferedWriter input = null;
-//
-//    @Override
-//    public void beginWindow(long windowId)
-//    {
-//    }
-//
-//    @Override
-//    public void endWindow()
-//    {
-//    }
-//
-//    @Override
-//    public void setup(OperatorContext context)
-//    {
-////      try {
-////        input = new BufferedWriter(new FileWriter(outputPath+"/input"));
-////      } catch (IOException ie) {
-////        throw new RuntimeException("Exception in writing data", ie);
-////      }
-//      queue = Queues.newConcurrentLinkedQueue();
-//      TimerTask t = new TimerTask()
-//      {
-//        @Override
-//        public void run()
-//        {
-//          try {
-//            Runtime rt = Runtime.getRuntime();
-//            String[] commands = new String[3];
-//            switch(usecaseId) {
-//              case 1:
-//                commands[0] = "/bin/sh";
-//                commands[1] = "-c";
-//                commands[2] = "hadoop fs -cat " + baseDataFile + " | awk -f src/test/resources/genRandomOrdered.awk";
-//                break;
-//            }
-//            Process proc = rt.exec(commands);
-//
-//            BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-//
-//            BufferedReader stdError = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
-//
-//            // read the output from the command
-//            String s = "";
-//
-//            while ((s = stdInput.readLine()) != null) {
-//              queue.add(s);
-//              System.out.println(s);
-////              input.write(s+"\n");
-////              input.flush();
-//            }
-//
-//            // read any errors from the attempted command
-//            while ((s = stdError.readLine()) != null) {
-//            }
-//
-//          } catch (IOException e) {
-//            throw new RuntimeException("exception in data generation", e);
-//          }
-//        }
-//      };
-//      new Timer().schedule(t, 0);
-//    }
-//
-//    @Override
-//    public void teardown()
-//    {
-////      try {
-////        input.flush();
-////        input.close();
-////      } catch (IOException e) {
-////        throw new RuntimeException("Exception in closing writer", e);
-////      }
-//    }
-//
-//    @Override
-//    public void emitTuples()
-//    {
-//      if (!queue.isEmpty()) {
-//        String s = queue.poll();
-//        output.emit(s.getBytes());
-//      }
-//    }
-//
-//    public int getUsecaseId()
-//    {
-//      return usecaseId;
-//    }
-//
-//    public void setUsecaseId(int usecaseId)
-//    {
-//      this.usecaseId = usecaseId;
-//    }
-//  }
+  public static class Input extends BaseOperator implements InputOperator
+  {
+    private int useCaseId;
+    private int numTuples = 1000000000;
+    private int expiryPeriod;
+    private int count = 0;
+    private transient BaseDataGenerator dg;
+    public transient DefaultOutputPort<byte[]> output = new DefaultOutputPort<byte[]>();
+
+    @Override
+    public void setup(OperatorContext context)
+    {
+      switch(useCaseId)
+      {
+        case 1: 
+          dg = new BaseDataGenerator(numTuples);
+          break;
+        case 2: 
+          dg = new OrderedDataGenerator(numTuples, expiryPeriod);
+          break;
+        case 3: 
+          dg = new TimeDataGenerator(numTuples, expiryPeriod);
+          break;
+        case 4: 
+          dg = new SystemTimeDataGenerator(numTuples, expiryPeriod);
+          break;
+        default:
+          throw new RuntimeException("Data generator for usecase " + useCaseId + " not implemented yet");
+      }
+    }
+
+    @Override
+    public void emitTuples()
+    {
+      String tuple = dg.generateNextTuple();
+      if(tuple.trim().length() > 0) {
+        output.emit(tuple.getBytes());
+        count++;
+        if(count >= numTuples) {
+          
+        }
+      }
+    }
+    
+    public int getUseCaseId()
+    {
+      return useCaseId;
+    }
+
+    public void setUseCaseId(int useCaseId)
+    {
+      this.useCaseId = useCaseId;
+    }
+
+    public int getNumTuples()
+    {
+      return numTuples;
+    }
+
+    public void setNumTuples(int numTuples)
+    {
+      this.numTuples = numTuples;
+    }
+
+    public int getExpiryPeriod()
+    {
+      return expiryPeriod;
+    }
+
+    public void setExpiryPeriod(int expiryPeriod)
+    {
+      this.expiryPeriod = expiryPeriod;
+    }
+  }
 
   public static class FileInputOperator extends BaseOperator implements InputOperator
   {
@@ -199,6 +176,7 @@ public class DedupRobotApplication implements StreamingApplication
   {
     private transient BufferedWriter bufferedWriter;
     private transient FileSystem fs;
+    private String path;
     public transient final DefaultInputPort<Object> input = new DefaultInputPort<Object>()
     {
       @Override
@@ -211,7 +189,6 @@ public class DedupRobotApplication implements StreamingApplication
         }
       }
     };
-    String path;
 
     @Override
     public void setup(OperatorContext context)
@@ -232,6 +209,16 @@ public class DedupRobotApplication implements StreamingApplication
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    public String getPath()
+    {
+      return path;
+    }
+
+    public void setPath(String path)
+    {
+      this.path = path;
     }
   }
 //  public static class Verifier extends BaseOperator
