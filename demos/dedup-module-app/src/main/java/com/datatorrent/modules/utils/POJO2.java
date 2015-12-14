@@ -42,4 +42,12 @@ public class POJO2
   {
     this.decision = decision;
   }
+  public Date getDate()
+  {
+    return date;
+  }
+  public void setDate(Date date)
+  {
+    this.date = date;
+  }
 }
