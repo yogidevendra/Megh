@@ -2,8 +2,17 @@ package com.datatorrent.module.io.fs;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.URI;
 
 import javax.validation.constraints.NotNull;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.datatorrent.api.AutoMetric;
 import com.datatorrent.api.Context;
@@ -40,9 +49,20 @@ class HDFSFileOutputOperator<T> extends AbstractFileOutputOperator<T>
 
   private long byteCount;
   private double windowTimeSec;
-  
-  private static final long  STREAM_EXPIRY_ACCESS_MILL = 24 * 60 * 60 * 1000L;
-  private static final int  ROTATION_WINDOWS = 2 * 60 * 60 * 20;
+
+  /**
+   * File Name format for output files
+   */
+  private String outputFileNameFormat = "%s.%d";
+
+  private String tupleFileName;
+
+  private int operatorId;
+
+  private static final long STREAM_EXPIRY_ACCESS_MILL = 24 * 60 * 60 * 1000L;
+  private static final int ROTATION_WINDOWS = 2 * 60 * 60 * 20;
+
+  private static final Logger LOG = LoggerFactory.getLogger(HDFSFileOutputOperator.class);
 
   public HDFSFileOutputOperator()
   {
@@ -59,7 +79,7 @@ class HDFSFileOutputOperator<T> extends AbstractFileOutputOperator<T>
   @Override
   protected String getFileName(T tuple)
   {
-    return fileName;
+    return tupleFileName;
   }
 
   /**
@@ -84,7 +104,6 @@ class HDFSFileOutputOperator<T> extends AbstractFileOutputOperator<T>
     try {
       bytesOutStream.write(tupleData);
       bytesOutStream.write(tupleSeparatorBytes);
-      byteCount += bytesOutStream.size();
       return bytesOutStream.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -97,10 +116,43 @@ class HDFSFileOutputOperator<T> extends AbstractFileOutputOperator<T>
     }
   }
 
+  private void writeTupleDataObject(ByteArrayOutputStream bytesOutStream, T tuple) throws IOException
+  {
+    ObjectOutputStream objectOutputStream;
+    objectOutputStream = new ObjectOutputStream(bytesOutStream);
+    objectOutputStream.writeObject(tuple);
+    objectOutputStream.close();
+  }
+
+  private final long getHDFSBlockSize()
+  {
+    //Initialize the maxLength to HDFS block size if it is not already set 
+    try {
+      FileSystem outputFS = FileSystem.newInstance(URI.create(filePath), new Configuration());
+      long blockSize = outputFS.getDefaultBlockSize(new Path(filePath));
+      outputFS.close();
+
+      return blockSize;
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to get FileSystem instance for computing .", e);
+    }
+  }
+
   @Override
   public void setup(OperatorContext context)
   {
     super.setup(context);
+
+    //Make sure each partition writes to different file by appending operatorId 
+    operatorId = context.getId();
+    tupleFileName = String.format(outputFileNameFormat, fileName, operatorId);
+    LOG.debug("maxLength :{}", maxLength);
+    if (maxLength == Long.MAX_VALUE) {
+      long blockSize = getHDFSBlockSize();
+      maxLength = blockSize;
+      LOG.debug("setMaxLength blockSize:{}", blockSize);
+    }
+
     windowTimeSec = (context.getValue(Context.OperatorContext.APPLICATION_WINDOW_COUNT)
         * context.getValue(Context.DAGContext.STREAMING_WINDOW_SIZE_MILLIS) * 1.0) / 1000.0;
   }
@@ -138,6 +190,7 @@ class HDFSFileOutputOperator<T> extends AbstractFileOutputOperator<T>
   public void setFileName(String fileName)
   {
     this.fileName = fileName;
+    tupleFileName = String.format(outputFileNameFormat, fileName, operatorId);
   }
 
   /**

@@ -1,7 +1,5 @@
 package com.datatorrent.module.io.fs;
 
-import java.io.Serializable;
-
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -25,7 +23,7 @@ import com.datatorrent.common.partitioner.StatelessPartitioner;
  * @param <T>
  */
 
-public class HDFSOutputModule<T extends Serializable> implements Module
+public class HDFSOutputModule<T> implements Module
 {
 
   @NotNull
@@ -40,7 +38,7 @@ public class HDFSOutputModule<T extends Serializable> implements Module
   @NotNull
   @Size(min = 1)
   private String fileName;
-  
+
   private String tupleSeparator = System.getProperty("line.separator");
 
   public static final String HDFS_SCHEME = "hdfs";
@@ -159,7 +157,8 @@ public class HDFSOutputModule<T extends Serializable> implements Module
 
   /**
    * Max file size decides number of bytes after which file should roll over. If
-   * no value is specified then files will not be rolled over.
+   * no value is specified then files will be rolled over to block size for
+   * HDFS.
    * 
    * @param maxLength
    */

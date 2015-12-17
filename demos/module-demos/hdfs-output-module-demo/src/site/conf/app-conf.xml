@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <configuration>
 	<property>
+		<name>dt.loggers.level</name>
+		<value>com.datatorrent.module.*:DEBUG,org.apache.*:INFO
+		</value>
+	</property>
+	<property>
+		<name>dt.operator.OrderedTupleGenerator.prop.noOfMessages</name>
+		<value>1000000</value>
+	</property>
+	<property>
+    <name>dt.operator.OrderedTupleGenerator.prop.maxTuplesPerWindow</name>
+    <value>20000</value>
+  </property>
+	<property>
 		<name>dt.module.HDFSOutput.prop.hostName</name>
 		<value>localhost</value>
 	</property>
@@ -10,18 +23,26 @@
 	</property>
 	<property>
 		<name>dt.module.HDFSOutput.prop.directory</name>
-		<value>/user/dtadmin</value>
+		<value>/user/dtadmin/test_output</value>
 	</property>
-	<property>
+  <property>
 		<name>dt.module.HDFSOutput.prop.fileName</name>
 		<value>output.txt</value>
 	</property>
+  <property>
+    <name>dt.module.HDFSOutput.prop.partitionCount</name>
+    <value>2</value>
+  </property>
+  <property>
+      <name>dt.operator.HDFSFileOutputOperator.attr.PARTITIONER</name>
+      <value>com.datatorrent.common.partitioner.StatelessPartitioner:2</value>
+  </property>
 	<property>
-		<name>dt.module.HDFSOutput.prop.maxLength</name>
-		<value>10</value>
+		<name>dt.operator.FileLineInputOperator.prop.directory</name>
+		<value>file:///tmp/sample.txt</value>
 	</property>
-	<property>
-    <name>dt.operator.FileLineInputOperator.prop.directory</name>
-    <value>file:///tmp/sample.txt</value>
+  <property>
+    <name>dt.operator.OutputValidator.prop.directory</name>
+    <value>/user/dtadmin/test_output</value>
   </property>
 </configuration>
