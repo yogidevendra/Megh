@@ -15,6 +15,7 @@
  */
 package com.datatorrent.lib.dedup;
 
+import com.datatorrent.lib.bucket.BasicBucketManagerPOJOImpl;
 import com.datatorrent.lib.bucket.BucketManager;
 import com.datatorrent.lib.bucket.POJOBucketManager;
 import com.datatorrent.lib.bucket.TimeBasedBucketManagerPOJOImpl;
@@ -42,10 +43,20 @@ public class DeduperPOJOImpl extends AbstractDeduper<Object, Object>
   {
     if (getter==null) {
       Class<?> fqcn = event.getClass();
-      getter = PojoUtils.createGetter(fqcn, ((TimeBasedBucketManagerPOJOImpl) bucketManager).getKeyExpression(), Object.class);
+      getter = PojoUtils.createGetter(fqcn, ((BasicBucketManagerPOJOImpl) bucketManager).getKeyExpression(), Object.class);
     }
 
     super.processTuple(event);
+  }
+  
+  public static void main(String[] args)
+  {
+    DeduperPOJOImpl deduperPOJOImpl = new DeduperPOJOImpl();
+    
+    BasicBucketManagerPOJOImpl basicBucketManagerPOJOImpl = new BasicBucketManagerPOJOImpl();
+    basicBucketManagerPOJOImpl.setKeyExpression("{$.getBytes()}");
+    deduperPOJOImpl.bucketManager = basicBucketManagerPOJOImpl;
+    deduperPOJOImpl.processTuple("a|b|c");
   }
 
   @Override

@@ -121,10 +121,28 @@ public class OrderedTupleGenerator implements InputOperator
     {
       this.id = id;
       this.data = data;
+      this.crc = computeCRC(data);
+    }
+    
+    public static long computeCRC(String data)
+    {
       CRC.reset();
       CRC.update(data.getBytes());
-      this.crc = CRC.getValue();
+      return CRC.getValue();
     }
+    
+    public MessageWithCRCCheck(String tuple)
+    {
+      String[] tokens = tuple.split("\\|");
+      long id = Long.parseLong(tokens[0]);
+      String data = tokens[1];
+      long crc = Long.parseLong(tokens[2]);
+      
+      this.id = id;
+      this.data = data;
+      this.crc = crc;
+    }
+
 
     public long getId()
     {
@@ -152,6 +170,8 @@ public class OrderedTupleGenerator implements InputOperator
       sb.append(crc);
       return sb.toString();
     }
+    
+    
 
   }
 

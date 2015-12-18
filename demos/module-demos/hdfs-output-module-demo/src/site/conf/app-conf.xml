@@ -2,7 +2,7 @@
 <configuration>
 	<property>
 		<name>dt.loggers.level</name>
-		<value>com.datatorrent.module.*:DEBUG,org.apache.*:INFO
+		<value>com.datatorrent.*:DEBUG,org.apache.*:INFO
 		</value>
 	</property>
 	<property>

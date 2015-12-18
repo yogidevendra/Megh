@@ -6,14 +6,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.fs.Path;
 
+import com.datatorrent.api.Context;
+import com.datatorrent.api.DAG;
+import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.lib.io.fs.AbstractFileInputOperator.FileLineInputOperator;
+import com.datatorrent.module.io.fs.OrderedTupleGenerator.MessageWithCRCCheck;
 
 public class OutputValidator extends FileLineInputOperator
 {
@@ -21,8 +24,22 @@ public class OutputValidator extends FileLineInputOperator
 
   private Map<String, Long> fileNameToMaxIdMap = new HashMap<String, Long>();
 
-  protected transient BufferedReader br;
+  protected transient BufferedReader br;  
 
+  public final transient DefaultOutputPort<MessageWithCRCCheck> messages = new DefaultOutputPort<MessageWithCRCCheck>();
+  
+  private static final String STATUS_FILE = "INTEGRITY.success";
+  Path statusPath;
+
+  @Override
+  public void setup(Context.OperatorContext context)
+  {
+    super.setup(context);
+    statusPath = new Path(context.getValue(DAG.APPLICATION_PATH) + Path.SEPARATOR + STATUS_FILE);
+    LOG.info("statusPath:{}",statusPath);
+  }
+
+  
   @Override
   protected InputStream openFile(Path path) throws IOException
   {
@@ -39,11 +56,19 @@ public class OutputValidator extends FileLineInputOperator
     br = null;
   }
 
+  
   @Override
   public void endWindow()
   {
     super.endWindow();
     if (pendingFileCount.longValue() == 0L) {
+      try {
+        fs.create(statusPath, true);
+      } catch (IOException e) {
+        throw new RuntimeException();
+      }
+      
+      LOG.info("VALIDATION SUCCESS: PASSED tuple integrity check");
       throw new ShutdownException();
     }
   }
@@ -51,43 +76,31 @@ public class OutputValidator extends FileLineInputOperator
   @Override
   protected void emit(String tuple)
   {
-    verify(tuple);
-    output.emit(tuple);
+    MessageWithCRCCheck messageWithCRCCheck = new MessageWithCRCCheck(tuple);
+    verify(messageWithCRCCheck);
+    messages.emit(messageWithCRCCheck);
   }
 
-  private boolean verify(String tuple)
+  private boolean verify(MessageWithCRCCheck messageWithCRCCheck)
   {
-    String[] tokens = tuple.split("\\|");
-    long id = Long.parseLong(tokens[0]);
-    String data = tokens[1];
-    long crc = Long.parseLong(tokens[2]);
-
-    if (!verifyCRC(id, data, crc) || !verifyOrder(id, data, crc)) {
+    if (!verifyCRC(messageWithCRCCheck) || !verifyOrder(messageWithCRCCheck)) {
       throw new ShutdownException();
     }
     return true;
   }
 
-  public static void main(String[] args)
+  private boolean verifyCRC(MessageWithCRCCheck messageWithCRCCheck)
   {
-    new OutputValidator().verify("1|ahfhsdjhfksh|890");
-  }
-
-  private static final CRC32 CRC = new CRC32();
-
-  private boolean verifyCRC(long id, String data, long crc)
-  {
-    CRC.reset();
-    CRC.update(data.getBytes());
-    boolean compare = (crc == CRC.getValue());
+    long computed = MessageWithCRCCheck.computeCRC(messageWithCRCCheck.getData());
+    boolean compare = (computed == messageWithCRCCheck.getCrc());
     if (compare == false) {
-      LOG.info("VALIDATION FAILED: CRC mismatch for id {} input {} output {} in file {}", id, crc, CRC.getValue(),
-          currentFile);
+      LOG.info("VALIDATION FAILED: CRC mismatch for id {} input {} output {} in file {}", messageWithCRCCheck.getId(),
+          messageWithCRCCheck.getCrc(), computed, currentFile);
     }
     return compare;
   }
 
-  private boolean verifyOrder(long id, String data, long crc)
+  private boolean verifyOrder(MessageWithCRCCheck messageWithCRCCheck)
   {
     if (currentFile.equals(previousFile) == false) {
       if (fileNameToMaxIdMap.get(currentFile) == null) {
@@ -97,10 +110,11 @@ public class OutputValidator extends FileLineInputOperator
     }
 
     long visitedId = fileNameToMaxIdMap.get(currentFile);
-    fileNameToMaxIdMap.put(currentFile, id);
+    fileNameToMaxIdMap.put(currentFile, messageWithCRCCheck.getId());
 
-    if (visitedId > id) {
-      LOG.info("VALIDATION FAILED: visitedId {} exists before id {} in file {}", visitedId, id, currentFile);
+    if (visitedId > messageWithCRCCheck.getId()) {
+      LOG.info("VALIDATION FAILED: visitedId {} exists before id {} in file {}", visitedId, messageWithCRCCheck.getId(),
+          currentFile);
       return false;
     }
     return true;
