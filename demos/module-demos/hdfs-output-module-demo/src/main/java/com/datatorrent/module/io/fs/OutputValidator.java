@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.fs.Path;
 
-import com.datatorrent.api.Context;
+import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.lib.io.fs.AbstractFileInputOperator.FileLineInputOperator;
@@ -24,22 +24,29 @@ public class OutputValidator extends FileLineInputOperator
 
   private Map<String, Long> fileNameToMaxIdMap = new HashMap<String, Long>();
 
-  protected transient BufferedReader br;  
+  protected transient BufferedReader br;
 
   public final transient DefaultOutputPort<MessageWithCRCCheck> messages = new DefaultOutputPort<MessageWithCRCCheck>();
-  
+
   private static final String STATUS_FILE = "INTEGRITY.success";
   Path statusPath;
 
-  @Override
-  public void setup(Context.OperatorContext context)
+  OutputValidator()
   {
-    super.setup(context);
-    statusPath = new Path(context.getValue(DAG.APPLICATION_PATH) + Path.SEPARATOR + STATUS_FILE);
-    LOG.info("statusPath:{}",statusPath);
+
   }
 
-  
+  @Override
+  public void setup(OperatorContext context)
+  {
+    LOG.debug("APPLICATION_PATH:{}", context.getValue(DAG.APPLICATION_PATH));
+    LOG.debug("STATUS_FILE", STATUS_FILE);
+    statusPath = new Path(context.getValue(DAG.APPLICATION_PATH) + Path.SEPARATOR + STATUS_FILE);
+    LOG.debug("statusPath:{}", statusPath);
+    super.setup(context);
+
+  }
+
   @Override
   protected InputStream openFile(Path path) throws IOException
   {
@@ -56,18 +63,19 @@ public class OutputValidator extends FileLineInputOperator
     br = null;
   }
 
-  
   @Override
   public void endWindow()
   {
+
     super.endWindow();
     if (pendingFileCount.longValue() == 0L) {
+
       try {
         fs.create(statusPath, true);
       } catch (IOException e) {
         throw new RuntimeException();
       }
-      
+
       LOG.info("VALIDATION SUCCESS: PASSED tuple integrity check");
       throw new ShutdownException();
     }
