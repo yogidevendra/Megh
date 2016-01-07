@@ -9,7 +9,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <artifactId>dt-module-apps</artifactId>
+    <artifactId>dt-demos</artifactId>
     <groupId>com.datatorrent</groupId>
     <version>3.3.0-SNAPSHOT</version>
   </parent>
