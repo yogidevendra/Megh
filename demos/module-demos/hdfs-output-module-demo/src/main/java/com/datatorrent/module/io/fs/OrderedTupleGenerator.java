@@ -25,8 +25,8 @@ public class OrderedTupleGenerator implements InputOperator
   private long messageId = 0;
   Random random;
 
-  private static final int M2 = 2 * 1000 * 1000;
-  private static final int M1 = 1 * 1000 * 1000;
+  private static final int M2 = 2 * 1024 * 1024;
+  private static final int M1 = 1 * 1024 * 1024;
 
   private static final String randomData = RandomStringUtils.random(M2, true, true);
   public transient DefaultOutputPort<MessageWithCRCCheck> output = new DefaultOutputPort<MessageWithCRCCheck>();
