@@ -52,7 +52,6 @@ import com.datatorrent.netlet.util.DTThrowable;
  *          input type
  * @param <QUEUETUPLE>
  *          tuple enqueued each window to be processed after window is committed
- * @since 2.0.0
  */
 public abstract class AbstractReconciler<INPUT, QUEUETUPLE> extends BaseOperator
     implements CheckpointListener, IdleTimeHandler
