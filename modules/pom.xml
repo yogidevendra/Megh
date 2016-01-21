@@ -139,6 +139,8 @@
     <module>hdfs-output-module</module>
     <module>record-reader-module</module>
     <module>aggregation-module</module>
+    <module>s3-input-module</module>
+    <module>utils</module>
   </modules>
   
 </project>
