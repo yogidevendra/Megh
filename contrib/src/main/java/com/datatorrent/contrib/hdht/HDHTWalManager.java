@@ -20,15 +20,19 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.datatorrent.contrib.hdht.wal.FSWALReader;
+import com.datatorrent.contrib.hdht.wal.FSWALWriter;
+import com.datatorrent.contrib.hdht.wal.WALReader;
+import com.datatorrent.contrib.hdht.wal.WALWriter;
+import com.datatorrent.lib.fileaccess.FileAccess;
 import com.datatorrent.netlet.util.Slice;
-import com.datatorrent.contrib.hdht.HDHT.WALReader;
-import com.datatorrent.contrib.hdht.HDHT.WALWriter;
 
 /**
  * Manages WAL for a bucket.
@@ -81,13 +85,7 @@ public class HDHTWalManager implements Closeable
   }
 
   /* Backing file system for WAL */
-  transient HDHTFileAccess bfs;
-
-  /*
-   * If maximum number of bytes allowed to be written to file between flush,
-   * default is 64K.
-   */
-  transient long maxUnflushedBytes = 64 * 1024;
+  transient FileAccess bfs;
 
   /* Maximum number of bytes per WAL file,
    * default is 128M */
@@ -112,19 +110,19 @@ public class HDHTWalManager implements Closeable
   @SuppressWarnings("unused")
   private HDHTWalManager() {}
 
-  public HDHTWalManager(HDHTFileAccess bfs, long bucketKey) {
+  public HDHTWalManager(FileAccess bfs, long bucketKey) {
     this.bfs = bfs;
     this.bucketKey = bucketKey;
   }
 
-  public HDHTWalManager(HDHTFileAccess bfs, long bucketKey, WalPosition walPos) {
+  public HDHTWalManager(FileAccess bfs, long bucketKey, WalPosition walPos) {
     this(bfs, bucketKey);
     this.walFileId = walPos == null? 0 : walPos.fileId;
     this.walSize = walPos == null? 0 : walPos.offset;
     logger.info("current {}  offset {} ", walFileId, walSize);
   }
 
-  public HDHTWalManager(HDHTFileAccess bfs, long bucketKey, long fileId, long offset) {
+  public HDHTWalManager(FileAccess bfs, long bucketKey, long fileId, long offset) {
     this.bfs = bfs;
     this.bucketKey = bucketKey;
     this.walFileId = fileId;
@@ -132,29 +130,37 @@ public class HDHTWalManager implements Closeable
     logger.info("current {}  offset {} ", walFileId, walSize);
   }
 
+  @Deprecated
+  public void runRecovery(Map<Slice, byte[]> writeCache, WalPosition start, WalPosition end) throws IOException
+  {
+    // not used just for backward compatibility.
+  }
+
   /**
    * Run recovery for bucket, by adding valid data from WAL to
    * store.
    */
-  public void runRecovery(Map<Slice, byte[]> writeCache, WalPosition start, WalPosition end) throws IOException {
-    if (end.fileId == 0 && end.offset == 0)
+  public void runRecovery(RecoveryContext context) throws IOException
+  {
+    if (context.endWalPos.fileId == 0 && context.endWalPos.offset == 0) {
       return;
+    }
 
     /* Make sure that WAL state is correctly restored */
-    truncateWal(end);
+    truncateWal(context.endWalPos);
 
     logger.info("Recovery of store, start {} till {}",
-        start, end);
+      context.startWalPos, context.endWalPos);
 
-    long offset = start.offset;
-    for (long i = start.fileId; i <= end.fileId; i++) {
-      WALReader wReader = new HDFSWalReader(bfs, bucketKey, WAL_FILE_PREFIX + i);
+    long offset = context.startWalPos.offset;
+    for (long i = context.startWalPos.fileId; i <= context.endWalPos.fileId; i++) {
+      WALReader<HDHTLogEntry.HDHTWalEntry> wReader = new FSWALReader<HDHTLogEntry.HDHTWalEntry>(bfs, new HDHTLogEntry.HDHTLogSerializer(), bucketKey, WAL_FILE_PREFIX + i);
       wReader.seek(offset);
       offset = 0;
       int count = 0;
       while (wReader.advance()) {
-        MutableKeyValue o = wReader.get();
-        writeCache.put(new Slice(o.getKey()), o.getValue());
+        HDHTLogEntry.HDHTWalEntry savedEntry = wReader.get();
+        recoveryEntry(context, savedEntry);
         count++;
       }
       wReader.close();
@@ -162,6 +168,20 @@ public class HDHTWalManager implements Closeable
     }
 
     walFileId++;
+  }
+
+  private void recoveryEntry(RecoveryContext context, HDHTLogEntry.HDHTWalEntry entry)
+  {
+    if (entry instanceof HDHTLogEntry.PutEntry) {
+      HDHTLogEntry.PutEntry putEntry = (HDHTLogEntry.PutEntry)entry;
+      context.writeCache.put(putEntry.key, putEntry.val);
+    } else if (entry instanceof HDHTLogEntry.DeleteEntry) {
+      context.writeCache.put(((HDHTLogEntry.DeleteEntry)entry).key, HDHTWriter.DELETED);
+    } else if (entry instanceof HDHTLogEntry.PurgeEntry) {
+      HDHTLogEntry.PurgeEntry pEntry = (HDHTLogEntry.PurgeEntry)entry;
+      context.writeCache.purge(pEntry.startKey, pEntry.endKey);
+      logger.debug("processing purge command {}", entry);
+    }
   }
 
   /**
@@ -185,19 +205,20 @@ public class HDHTWalManager implements Closeable
 
   public void append(Slice key, byte[] value) throws IOException
   {
-    if (writer == null)
-      writer = new HDFSWalWriter(bfs, bucketKey, WAL_FILE_PREFIX + walFileId);
+    append(new HDHTLogEntry.PutEntry(key, value));
+    stats.totalKeys++;
+  }
 
-    writer.append(key, value);
-    long bytes = key.length + value.length + 2 * 4;
-    stats.totalBytes += bytes;
-    stats.totalKeys ++;
-    dirty = true;
+  public void append(HDHTLogEntry.HDHTWalEntry entry) throws IOException
+  {
 
-    if (maxUnflushedBytes > 0 && writer.getUnflushedCount() > maxUnflushedBytes)
-    {
-      flushWal();
+    if (writer == null) {
+      writer = new FSWALWriter(bfs, new HDHTLogEntry.HDHTLogSerializer(), bucketKey, WAL_FILE_PREFIX + walFileId);
     }
+
+    int len = writer.append(entry);
+    stats.totalBytes += len;
+    dirty = true;
   }
 
   protected void flushWal() throws IOException
@@ -222,10 +243,10 @@ public class HDHTWalManager implements Closeable
 
     dirty = false;
     flushedWid = windowId;
-    walSize = writer.logSize();
+    walSize = writer.getSize();
 
     /* Roll over log, if we have crossed the log size */
-    if (maxWalFileSize > 0 && writer.logSize() > maxWalFileSize) {
+    if (maxWalFileSize > 0 && writer.getSize() > maxWalFileSize) {
       logger.info("Rolling over log {} windowid {}", writer, windowId);
       writer.close();
       walFileId++;
@@ -267,17 +288,19 @@ public class HDHTWalManager implements Closeable
     this.maxWalFileSize = maxWalFileSize;
   }
 
+  @Deprecated
   public long getMaxUnflushedBytes()
   {
-    return maxUnflushedBytes;
+    return Long.MAX_VALUE;
   }
 
+  @Deprecated
   public void setMaxUnflushedBytes(long maxUnflushedBytes)
   {
-    this.maxUnflushedBytes = maxUnflushedBytes;
   }
 
-  public long getFlushedWid() {
+  public long getFlushedWid()
+  {
     return flushedWid;
   }
 
@@ -298,7 +321,7 @@ public class HDHTWalManager implements Closeable
     return walSize;
   }
 
-  public void setFileStore(HDHTFileAccess bfs)
+  public void setFileStore(FileAccess bfs)
   {
     this.bfs = bfs;
   }
@@ -308,6 +331,20 @@ public class HDHTWalManager implements Closeable
   }
 
   private static transient final Logger logger = LoggerFactory.getLogger(HDHTWalManager.class);
+
+  static class RecoveryContext
+  {
+    WriteCache writeCache;
+    WalPosition startWalPos;
+    WalPosition endWalPos;
+
+    public RecoveryContext(WriteCache writeCache, Comparator<Slice> cmparator, WalPosition startWalPos, WalPosition endWalPos)
+    {
+      this.writeCache = writeCache;
+      this.startWalPos = startWalPos;
+      this.endWalPos = endWalPos;
+    }
+  }
 
   /**
    * Stats related functionality

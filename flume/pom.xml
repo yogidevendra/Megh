@@ -5,7 +5,7 @@
   <parent>
     <artifactId>dt-megh</artifactId>
     <groupId>com.datatorrent</groupId>
-    <version>2.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>dt-flume</artifactId>
@@ -38,9 +38,8 @@
                 <configuration>
                   <target unless="${obfuscation.skip}">
                     <property name="obf.jar" value="target/dt-flume-${project.version}.jar"/>
-                    <property name="dep1.jar" value="../netlet/target/dt-netlet-1.0.1-SNAPSHOT.jar" />
-                    <property name="runtime_classpath" refid="maven.runtime.classpath"/>
-                    <taskdef name="allatori" classname="com.allatori.ant.ObfuscatorTask" classpath="${env.ALLATORI_LIB}/allatori.jar:${runtime_classpath}"/>
+                    <property name="compile_classpath" refid="maven.compile.classpath"/>
+                    <taskdef name="allatori" classname="com.allatori.ant.ObfuscatorTask" classpath="${env.ALLATORI_LIB}/allatori.jar:${compile_classpath}"/>
                     <allatori config="${basedir}/allatori-config.xml"/>
                   </target>
                 </configuration>
@@ -86,9 +85,9 @@
                       <artifact></artifact>
                       <dependency>
                         <includes>
-                          <include>com.datatorrent:dt-api:jar:${project.version}</include>
-                          <include>com.datatorrent:dt-netlet:jar:1.0.1-SNAPSHOT</include>
-                          <include>com.datatorrent:dt-common:jar:${project.version}</include>
+                          <include>org.apache.apex:apex-api:jar:${apex.core.version}</include>
+                          <include>com.datatorrent:dt-netlet:jar:1.2.0</include>
+                          <include>org.apache.apex:apex-common:jar:${apex.core.version}</include>
                           <include>com.esotericsoftware.kryo:kryo:jar:2.24.0</include>
                           <include>com.esotericsoftware.minlog:minlog:jar:1.2</include>
                           <include>org.objenesis:objenesis:jar:2.1</include>
@@ -190,9 +189,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>dt-common</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-common</artifactId>
+      <version>${apex.core.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.flume</groupId>
@@ -235,14 +234,14 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>dt-api</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-api</artifactId>
+      <version>${apex.core.version}</version>
     </dependency>
     <dependency>
       <groupId>com.datatorrent</groupId>
       <artifactId>netlet</artifactId>
-      <version>1.0.1-SNAPSHOT</version>
+      <version>1.2.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.curator</groupId>

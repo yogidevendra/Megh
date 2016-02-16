@@ -15,7 +15,9 @@
  */
 package com.datatorrent.lib.bucket;
 
+import com.datatorrent.api.AutoMetric;
 import com.datatorrent.lib.counters.BasicCounters;
+
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Comparator;
@@ -31,10 +33,12 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang.mutable.MutableLong;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Sets;
@@ -97,6 +101,8 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
   @NotNull
   protected final Map<Integer, AbstractBucket<T>> dirtyBuckets;
   protected long committedWindow;
+  private boolean collateFilesForBucket = false;
+  protected Set<Integer> bucketsToDelete;
   //Not check-pointed
   //Indexed by bucketKey keys.
   protected transient AbstractBucket<T>[] buckets;
@@ -113,6 +119,22 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
 
   protected transient boolean recordStats;
   protected transient BasicCounters<MutableLong> bucketCounters;
+
+  // Auto Metrics
+  @AutoMetric
+  protected long deletedBuckets;
+  @AutoMetric
+  protected long bucketsInMemory;
+  @AutoMetric
+  protected long evictedBuckets;
+  @AutoMetric
+  protected long eventsInMemory;
+  @AutoMetric
+  protected long eventsCommittedLastWindow;
+  @AutoMetric
+  protected long endOfBuckets;
+  @AutoMetric
+  protected long startOfBuckets;
 
   public AbstractBucketManager()
   {
@@ -142,6 +164,7 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
     maxNoOfBucketsInMemory = DEF_NUM_BUCKETS_MEM + 100;
     millisPreventingBucketEviction = DEF_MILLIS_PREVENTING_EVICTION;
     writeEventKeysOnly = true;
+    bucketsToDelete = Sets.newHashSet();
   }
 
   /**
@@ -194,6 +217,11 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
     }
   }
 
+  public boolean isWriteEventKeysOnly()
+  {
+    return writeEventKeysOnly;
+  }
+
   @Override
   public void setBucketCounters(@Nonnull BasicCounters<MutableLong> bucketCounters)
   {
@@ -218,6 +246,9 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
   public void run()
   {
     running = true;
+    List<Long> requestedBuckets = Lists.newArrayList();
+    // Evicted Buckets Map: Bucket Index -> Bucket Key.
+    Map<Integer, Long> evictedBuckets = Maps.newHashMap();
     try {
       while (running) {
         Long request = eventQueue.poll(1, TimeUnit.SECONDS);
@@ -227,8 +258,10 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
             synchronized (lock) {
               lock.notify();
             }
+            requestedBuckets.clear();
           }
           else {
+            requestedBuckets.add(requestedKey);
             int bucketIdx = (int) (requestedKey % noOfBuckets);
             long numEventsRemoved = 0;
             if (buckets[bucketIdx] != null && buckets[bucketIdx].bucketKey != requestedKey) {
@@ -241,12 +274,20 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
 
               listener.bucketOffLoaded(oldBucket.bucketKey);
               bucketStore.deleteBucket(bucketIdx);
+              listener.bucketDeleted(oldBucket.bucketKey);
               if (recordStats) {
-                bucketCounters.getCounter(CounterKeys.DELETED_BUCKETS).increment();
-                bucketCounters.getCounter(CounterKeys.BUCKETS_IN_MEMORY).decrement();
+                updateCounter(CounterKeys.DELETED_BUCKETS, 1, false);
+                updateCounter(CounterKeys.BUCKETS_IN_MEMORY, -1, false);
                 numEventsRemoved += oldBucket.countOfUnwrittenEvents() + oldBucket.countOfWrittenEvents();
               }
               logger.debug("deleted bucket {} {}", oldBucket.bucketKey, bucketIdx);
+            }
+            else if(buckets[bucketIdx] == null) // May be due to eviction or due to operator crash
+            {
+              if(evictedBuckets.containsKey(bucketIdx) && evictedBuckets.get(bucketIdx) < requestedKey){
+                bucketStore.deleteBucket(bucketIdx);
+                logger.debug("deleted bucket positions for idx {}", bucketIdx);
+              }
             }
 
             Map<Object, T> bucketDataInStore = bucketStore.fetchBucket(bucketIdx);
@@ -263,6 +304,10 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
                 if (lruBucket == null) {
                   break;
                 }
+                // Do not evict buckets loaded in the current window
+                if(requestedBuckets.contains(lruBucket.bucketKey)) {
+                  break;
+                }
                 int lruIdx = (int) (lruBucket.bucketKey % noOfBuckets);
 
                 if (dirtyBuckets.containsKey(lruIdx)) {
@@ -274,10 +319,11 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
                 }
                 evictionCandidates.remove(lruIdx);
                 buckets[lruIdx] = null;
+                evictedBuckets.put(lruIdx, lruBucket.bucketKey);
                 listener.bucketOffLoaded(lruBucket.bucketKey);
                 if (recordStats) {
-                  bucketCounters.getCounter(CounterKeys.EVICTED_BUCKETS).increment();
-                  bucketCounters.getCounter(CounterKeys.BUCKETS_IN_MEMORY).decrement();
+                  updateCounter(CounterKeys.EVICTED_BUCKETS, 1, false);
+                  updateCounter(CounterKeys.BUCKETS_IN_MEMORY, -1, false);
                   numEventsRemoved += lruBucket.countOfUnwrittenEvents() + lruBucket.countOfWrittenEvents();
                 }
                 logger.debug("evicted bucket {} {}", lruBucket.bucketKey, lruIdx);
@@ -288,13 +334,14 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
             if (bucket == null || bucket.bucketKey != requestedKey) {
               bucket = createBucket(requestedKey);
               buckets[bucketIdx] = bucket;
+              evictedBuckets.remove(bucketIdx);
             }
             bucket.setWrittenEvents(bucketDataInStore);
             evictionCandidates.add(bucketIdx);
             listener.bucketLoaded(bucket);
             if (recordStats) {
-              bucketCounters.getCounter(CounterKeys.BUCKETS_IN_MEMORY).increment();
-              bucketCounters.getCounter(CounterKeys.EVENTS_IN_MEMORY).add(bucketDataInStore.size() - numEventsRemoved);
+              updateCounter(CounterKeys.BUCKETS_IN_MEMORY, 1, false);
+              updateCounter(CounterKeys.EVENTS_IN_MEMORY, bucketDataInStore.size() - numEventsRemoved, false);
             }
             bucketHeap.clear();
           }
@@ -304,6 +351,60 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
     catch (Throwable cause) {
       running = false;
       DTThrowable.rethrow(cause);
+    }
+  }
+
+  /**
+   * Updates the counters and autometrics. Counters will be deprecated in the
+   * future. Autometrics will be used thereafter.
+   *
+   * @param counter Counter key to update
+   * @param count Count to be added
+   * @param reset Whether to reset the counter before adding
+   */
+  protected void updateCounter(CounterKeys counter, long count, boolean reset)
+  {
+    if (bucketCounters != null) {
+      if (reset) {
+        bucketCounters.getCounter(counter).setValue(0);
+      }
+      bucketCounters.getCounter(counter).add(count);
+    } else {
+      switch (counter) {
+        case BUCKETS_IN_MEMORY:
+          if (reset) {
+            bucketsInMemory = 0;
+          }
+          bucketsInMemory += count;
+          break;
+        case DELETED_BUCKETS:
+          if (reset) {
+            deletedBuckets = 0;
+          }
+          deletedBuckets += count;
+          break;
+        case EVENTS_COMMITTED_LAST_WINDOW:
+          if (reset) {
+            eventsCommittedLastWindow = 0;
+          }
+          eventsCommittedLastWindow += count;
+          break;
+        case EVENTS_IN_MEMORY:
+          if (reset) {
+            eventsInMemory = 0;
+          }
+          eventsInMemory += count;
+          break;
+        case EVICTED_BUCKETS:
+          if (reset) {
+            evictedBuckets = 0;
+          }
+          evictedBuckets += count;
+          break;
+        default:
+          // Will never reach here
+          break;
+      }
     }
   }
 
@@ -371,8 +472,14 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
 
     bucket.addNewEvent(bucket.getEventKey(event), writeEventKeysOnly ? null : event);
     if (recordStats) {
-      bucketCounters.getCounter(CounterKeys.EVENTS_IN_MEMORY).increment();
+      updateCounter(CounterKeys.EVENTS_IN_MEMORY, 1, false);
     }
+  }
+
+  @Override
+  public void addEventToBucket(AbstractBucket<T> bucket, T event)
+  {
+    bucket.addNewEvent(bucket.getEventKey(event), writeEventKeysOnly ? null : event);
   }
 
   @Override
@@ -381,33 +488,76 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
     saveData(window, window);
   }
 
+  @Override
+  public void checkpointed(long window)
+  {
+  }
+
+  @Override
+  public void committed(long window)
+  {
+  }
+
   protected void saveData(long window, long id)
   {
-    Map<Integer, Map<Object, T>> dataToStore = Maps.newHashMap();
+    Map<Integer, Map<Object, T>> dataToStore = getDataToStore();
     long eventsCount = 0;
-    for (Map.Entry<Integer, AbstractBucket<T>> entry : dirtyBuckets.entrySet()) {
-      AbstractBucket<T> bucket = entry.getValue();
-      dataToStore.put(entry.getKey(), bucket.getUnwrittenEvents());
-      eventsCount += bucket.countOfUnwrittenEvents();
-      bucket.transferDataFromMemoryToStore();
-      evictionCandidates.add(entry.getKey());
+    for (Map<Object, T> events : dataToStore.values()) {
+      eventsCount += events.size();
     }
     if (recordStats) {
-      bucketCounters.getCounter(CounterKeys.EVENTS_COMMITTED_LAST_WINDOW).setValue(eventsCount);
+      updateCounter(CounterKeys.EVENTS_COMMITTED_LAST_WINDOW, eventsCount, true);
     }
-    try {
-      if (!dataToStore.isEmpty()) {
-        long start = System.currentTimeMillis();
-        logger.debug("start store {}", window);
-        bucketStore.storeBucketData(window, id, dataToStore);
-        logger.debug("end store {} num {} took {}", window, eventsCount, System.currentTimeMillis() - start);
-      }
-    }
-    catch (IOException e) {
-      throw new RuntimeException(e);
+    if (!dataToStore.isEmpty()) {
+      long start = System.currentTimeMillis();
+      logger.debug("start store {}", window);
+      storeData(window, id, dataToStore);
+      logger.debug("end store {} num {} took {}", window, eventsCount, System.currentTimeMillis() - start);
     }
     dirtyBuckets.clear();
     committedWindow = window;
+  }
+
+  /**
+   * Collects data from dirty buckets which needs to be stored into the persistent store.
+   *
+   * @return dataToStore The data which will be persisted in a new file pmn Hdfs
+   */
+  protected Map<Integer, Map<Object, T>> getDataToStore()
+  {
+    Map<Integer, Map<Object, T>> dataToStore = Maps.newHashMap();
+    for (Map.Entry<Integer, AbstractBucket<T>> entry : dirtyBuckets.entrySet()) {
+      AbstractBucket<T> bucket = entry.getValue();
+      dataToStore.put(entry.getKey(), bucket.getUnwrittenEvents());
+      if (collateFilesForBucket) {
+        // Then collate all data together and write into a new file together
+        if (bucket.getWrittenEventKeys() != null && !bucket.getWrittenEventKeys().isEmpty()) {
+          dataToStore.put(entry.getKey(), bucket.getWrittenEvents());
+          bucketsToDelete.add(entry.getKey()); // Record bucket to be deleted
+        }
+      }
+      bucket.transferDataFromMemoryToStore();
+      evictionCandidates.add(entry.getKey());
+    }
+    return dataToStore;
+  }
+
+  protected void storeData(long window, long id, Map<Integer, Map<Object, T>> dataToStore)
+  {
+    if (collateFilesForBucket) {
+      for (int key : bucketsToDelete) {
+        try {
+          bucketStore.deleteBucket(key);
+        } catch (Exception e) {
+          throw new RuntimeException("Error deleting bucket index " + key, e);
+        }
+      }
+    }
+    try {
+      bucketStore.storeBucketData(window, id, dataToStore);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -524,6 +674,89 @@ public abstract class AbstractBucketManager<T> implements BucketManager<T>, Runn
     AbstractBucketManager<T> clone = (AbstractBucketManager<T>)super.clone();
     clone.setBucketStore(clone.getBucketStore().clone());
     return clone;
+  }
+
+  // Getters for Bucket Metrics
+  public long getDeletedBuckets()
+  {
+    return deletedBuckets;
+  }
+
+  public long getEvictedBuckets()
+  {
+    return evictedBuckets;
+  }
+
+  public long getEventsInMemory()
+  {
+    return eventsInMemory;
+  }
+
+  public long getEventsCommittedLastWindow()
+  {
+    return eventsCommittedLastWindow;
+  }
+
+  public long getEndOfBuckets()
+  {
+    return endOfBuckets;
+  }
+
+  public long getStartOfBuckets()
+  {
+    return startOfBuckets;
+  }
+
+  // Setters for Bucket Metrics
+  public void setDeletedBuckets(long deletedBuckets)
+  {
+    this.deletedBuckets = deletedBuckets;
+  }
+
+  public void setBucketsInMemory(long bucketsInMemory)
+  {
+    this.bucketsInMemory = bucketsInMemory;
+  }
+
+  public void setEvictedBuckets(long evictedBuckets)
+  {
+    this.evictedBuckets = evictedBuckets;
+  }
+
+  public void setEventsInMemory(long eventsInMemory)
+  {
+    this.eventsInMemory = eventsInMemory;
+  }
+
+  public void setEventsCommittedLastWindow(long eventsCommittedLastWindow)
+  {
+    this.eventsCommittedLastWindow = eventsCommittedLastWindow;
+  }
+
+  public void setEndOfBuckets(long endOfBuckets)
+  {
+    this.endOfBuckets = endOfBuckets;
+  }
+
+  public void setStartOfBuckets(long startOfBuckets)
+  {
+    this.startOfBuckets = startOfBuckets;
+  }
+
+  public boolean isCollateFilesForBucket()
+  {
+    return collateFilesForBucket;
+  }
+
+  /**
+   * Sets whether entire bucket data must be persisted together in a new file.
+   * When this is not set, only the unwritten part of the bucket is persisted.
+   *
+   * @param collateFilesForBucket
+   */
+  public void setCollateFilesForBucket(boolean collateFilesForBucket)
+  {
+    this.collateFilesForBucket = collateFilesForBucket;
   }
 
   private static transient final Logger logger = LoggerFactory.getLogger(AbstractBucketManager.class);

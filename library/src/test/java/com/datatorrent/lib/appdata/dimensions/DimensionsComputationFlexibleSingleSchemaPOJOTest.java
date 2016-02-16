@@ -6,9 +6,11 @@ package com.datatorrent.lib.appdata.dimensions;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -33,8 +35,6 @@ import com.datatorrent.lib.util.TestUtils;
 
 public class DimensionsComputationFlexibleSingleSchemaPOJOTest
 {
-  private static final Logger LOG = LoggerFactory.getLogger(DimensionsComputationFlexibleSingleSchemaPOJOTest.class);
-
   @Before
   public void setup()
   {
@@ -213,6 +213,160 @@ public class DimensionsComputationFlexibleSingleSchemaPOJOTest
     Assert.assertEquals(6, sink.collectedTuples.size());
   }
 
+  @Test
+  public void customTimeBucketsTest()
+  {
+    AdInfo ai = createTestAdInfoEvent1();
+
+    DimensionsComputationFlexibleSingleSchemaPOJO dcss = createDimensionsComputationOperator("adsGenericEventSchemaCustomTimeBucketsSimple.json");
+
+    CollectorTestSink<Aggregate> sink = new CollectorTestSink<Aggregate>();
+    TestUtils.setSink(dcss.output, sink);
+
+    dcss.setup(null);
+    dcss.beginWindow(0L);
+    dcss.input.put(ai);
+    dcss.endWindow();
+
+    Assert.assertEquals(5, sink.collectedTuples.size());
+
+    Set<Integer> expectedTimeBucketIDs = Sets.newHashSet(2, 3, 4, 256, 257);
+
+    Set<Integer> timeBucketIDs = Sets.newHashSet();
+
+    for (Aggregate aggregate : sink.collectedTuples) {
+      int timeBucketID = aggregate.getKeys().getFieldInt(DimensionsDescriptor.DIMENSION_TIME_BUCKET);
+      timeBucketIDs.add(timeBucketID);
+    }
+
+    Assert.assertEquals(expectedTimeBucketIDs, timeBucketIDs);
+  }
+
+  @Test
+  public void testNoTimeBucket()
+  {
+    AdInfo ai1 = createTestAdInfoEvent1();
+    AdInfo ai2 = createTestAdInfoEvent1();
+    ai1.setTime(5000000L);
+
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(
+      SchemaUtils.jarResourceFileToString("adsGenericEventSchemaNoTime.json"),
+      AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+
+    DimensionsComputationFlexibleSingleSchemaPOJO dimensions
+      = createDimensionsComputationOperator("adsGenericEventSchemaNoTime.json");
+
+    FieldsDescriptor valueFD = schema.getDimensionsDescriptorIDToAggregatorIDToInputAggregatorDescriptor().
+      get(0).get(AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY.getIncrementalAggregatorNameToID().
+        get(AggregatorIncrementalType.SUM.name()));
+
+    CollectorTestSink<Aggregate> sink = new CollectorTestSink<Aggregate>();
+    TestUtils.setSink(dimensions.output, sink);
+
+    dimensions.setup(null);
+    dimensions.beginWindow(0L);
+    dimensions.input.put(ai1);
+    dimensions.input.put(ai2);
+    dimensions.endWindow();
+
+    Assert.assertEquals(8, sink.collectedTuples.size());
+
+    GPOMutable valueGPO = new GPOMutable(valueFD);
+    valueGPO.setField("clicks", ai1.getClicks() + ai2.getClicks());
+    valueGPO.setField("impressions", ai1.getImpressions() + ai2.getImpressions());
+    valueGPO.setField("revenue", ai1.getRevenue() + ai2.getRevenue());
+    valueGPO.setField("cost", ai1.getCost() + ai2.getCost());
+
+    for (Aggregate aggregate : sink.collectedTuples) {
+      Assert.assertFalse(aggregate.getKeys().getFieldDescriptor().getFieldList().contains(DimensionsDescriptor.DIMENSION_TIME));
+      Assert.assertEquals(valueGPO, aggregate.getAggregates());
+    }
+  }
+
+  /**
+   * A schema illustrating this corner case is as follows:
+   * <br/>
+   * <pre>
+   * {@code
+   * {"keys":[{"name":"publisher","type":"string"},
+   *      {"name":"advertiser","type":"string"},
+   *      {"name":"location","type":"string"}],
+   *  "timeBuckets":["1m"],
+   *  "values":
+   * [{"name":"impressions","type":"long","aggregators":["SUM"]},
+   *  {"name":"clicks","type":"long","aggregators":["SUM"]},
+   *  {"name":"cost","type":"double","aggregators":["SUM"]},
+   *  {"name":"revenue","type":"double"}],
+   *  "dimensions":
+   * [{"combination":[]},
+   *  {"combination":["location"],"additionalValues":["revenue:SUM"]}]
+   * }
+   * }
+   * </pre>
+   */
+  @Test
+  public void testOneAdditionalValuesCornerCase()
+  {
+    AdInfo ai = createTestAdInfoEvent1();
+
+    DimensionsComputationFlexibleSingleSchemaPOJO dcss = createDimensionsComputationOperator("adsGenericEventSchemaAdditionalOne.json");
+
+    CollectorTestSink<Aggregate> sink = new CollectorTestSink<Aggregate>();
+    TestUtils.setSink(dcss.output, sink);
+
+    dcss.setup(null);
+    dcss.beginWindow(0L);
+    dcss.input.put(ai);
+    dcss.endWindow();
+
+    Assert.assertEquals(2, sink.collectedTuples.size());
+
+    Set<Integer> numAggregates = Sets.newHashSet();
+
+    int count = sink.collectedTuples.get(0).getAggregates().getFieldsDouble().length +
+                sink.collectedTuples.get(0).getAggregates().getFieldsLong().length;
+    int index = 0;
+
+    if (count == 4) {
+      index = 0;
+    }
+
+    numAggregates.add(count);
+
+    count = sink.collectedTuples.get(1).getAggregates().getFieldsDouble().length +
+            sink.collectedTuples.get(1).getAggregates().getFieldsLong().length;
+
+    if (count == 4) {
+      index = 1;
+    }
+
+    numAggregates.add(count);
+
+    Assert.assertEquals(Sets.newHashSet(3, 4), numAggregates);
+
+    Aggregate agg = sink.collectedTuples.get(index);
+
+    Assert.assertEquals(10.0, agg.getAggregates().getFieldDouble("revenue"), .001);
+  }
+
+  @Test
+  public void differentTimeBucketsForDimensionCombinations()
+  {
+    AdInfo ai = createTestAdInfoEvent1();
+
+    DimensionsComputationFlexibleSingleSchemaPOJO dcss = createDimensionsComputationOperator("adsGenericEventSchemaDimensionTimeBuckets.json");
+
+    CollectorTestSink<Aggregate> sink = new CollectorTestSink<>();
+    TestUtils.setSink(dcss.output, sink);
+
+    dcss.setup(null);
+    dcss.beginWindow(0L);
+    dcss.input.put(ai);
+    dcss.endWindow();
+
+    Assert.assertEquals(11, sink.collectedTuples.size());
+  }
+
   public static DimensionsComputationFlexibleSingleSchemaPOJO createDimensionsComputationOperator(String eventSchema)
   {
     DimensionsComputationFlexibleSingleSchemaPOJO dimensions = new DimensionsComputationFlexibleSingleSchemaPOJO();
@@ -297,4 +451,6 @@ public class DimensionsComputationFlexibleSingleSchemaPOJOTest
 
     return num;
   }
+
+  private static final Logger LOG = LoggerFactory.getLogger(DimensionsComputationFlexibleSingleSchemaPOJOTest.class);
 }

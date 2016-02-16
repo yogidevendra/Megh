@@ -5,25 +5,28 @@
   <parent>
     <groupId>com.datatorrent</groupId>
     <artifactId>dt-megh</artifactId>
-    <version>2.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
 
+  <groupId>com.datatorrent</groupId>
   <artifactId>dt-demos</artifactId>
   <packaging>pom</packaging>
   <name>Demos</name>
 
-  <modules>
-    <module>starter-app</module>
-    <module>dimensions</module>
-  </modules>
-
   <properties>
-    <!-- change this if you desire to use a different version of DataTorrent -->
-    <datatorrent.version>2.2.0-SNAPSHOT</datatorrent.version>
-    <datatorrent.apppackage.classpath>lib/*.jar</datatorrent.apppackage.classpath>
+    <semver.plugin.skip>true</semver.plugin.skip>
+    <apex.apppackage.classpath>lib/*.jar</apex.apppackage.classpath>
   </properties>
-  <build>
-    <pluginManagement>
+
+  <profiles>
+  <profile>
+    <id>demo-plugin-activation</id>
+    <activation>
+        <file>
+            <exists>${basedir}/src/main</exists>
+        </file>
+    </activation>
+    <build>
       <plugins>
         <plugin>
           <artifactId>maven-eclipse-plugin</artifactId>
@@ -51,8 +54,7 @@
           <executions>
             <execution>
               <id>copy-dependencies</id>
-              <phase>none</phase>
-              <!--phase>prepare-package</phase-->
+              <phase>prepare-package</phase>
               <goals>
                 <goal>copy-dependencies</goal>
               </goals>
@@ -83,9 +85,10 @@
                 </archiverConfig>
                 <archive>
                   <manifestEntries>
-                    <Class-Path>${datatorrent.apppackage.classpath}</Class-Path>
-                    <DT-Engine-Version>${datatorrent.version}</DT-Engine-Version>
+                    <Class-Path>${apex.apppackage.classpath}</Class-Path>
+                    <DT-Engine-Version>${apex.core.version}</DT-Engine-Version>
                     <DT-App-Package-Name>${project.artifactId}</DT-App-Package-Name>
+                    <DT-App-Package-Group-Id>${project.groupId}</DT-App-Package-Group-Id>
                     <DT-App-Package-Version>${project.version}</DT-App-Package-Version>
                     <DT-App-Package-Display-Name>${project.name}</DT-App-Package-Display-Name>
                     <DT-App-Package-Description>${project.description}</DT-App-Package-Description>
@@ -137,7 +140,87 @@
           </executions>
         </plugin>
       </plugins>
-    </pluginManagement>
-  </build>
+    </build>
+  </profile>
+  </profiles>
+
+  <!-- this does not work as plugin order is changed during merge
+  <build>
+      <plugins>
+            <plugin>
+                <groupId>com.github.odavid.maven.plugins</groupId>
+                <artifactId>mixin-maven-plugin</artifactId>
+                <version>0.1-alpha-23</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <mixins>
+                        <mixin>
+                            <groupId>org.apache.apex</groupId>
+                            <artifactId>malhar-demos</artifactId>
+                            <version>${malhar.version}</version>
+                        </mixin>
+                    </mixins>
+                </configuration>
+            </plugin>
+       </plugins>
+   </build>
+-->
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>malhar-contrib</artifactId>
+      <version>${malhar.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>malhar-library</artifactId>
+      <version>${malhar.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>malhar-library</artifactId>
+      <version>${malhar.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-common</artifactId>
+      <version>${apex.core.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-api</artifactId>
+      <version>${apex.core.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+
+  <modules>
+    <module>starter-app</module>
+    <module>dimensions</module>
+    <module>machinedata</module>
+  </modules>
 
 </project>

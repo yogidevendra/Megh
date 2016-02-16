@@ -47,10 +47,10 @@ public class MockGenerator implements InputGenerator<byte[]>
 
     SalesEvent salesEvent = new SalesEvent();
     salesEvent.time = System.currentTimeMillis();
-    salesEvent.product = "Laptops";
+    salesEvent.productId = 1;
     salesEvent.channel = "Mobile";
     salesEvent.region = "Atlanta";
-    salesEvent.amount = 1.0;
+    salesEvent.sales = 1.0;
     salesEvent.tax = 2.0;
     salesEvent.discount = 3.0;
 

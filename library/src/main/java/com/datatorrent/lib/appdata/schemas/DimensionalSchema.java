@@ -9,17 +9,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import com.datatorrent.lib.dimensions.aggregator.AggregatorRegistry;
 import com.datatorrent.lib.dimensions.aggregator.IncrementalAggregator;
@@ -29,19 +29,21 @@ import com.datatorrent.lib.dimensions.aggregator.IncrementalAggregator;
  * schema is built from two sources: a {@link DimensionalConfigurationSchema} and an optional schema stub. The
  * {@link DimensionalConfigurationSchema} is responsible for defining the key, values, dimensions combinations,
  * and the aggregations performed for each dimensions combination. The schema stub defines the from and to
- * times for the App Data dimensions schema. For details on how to define the {@link DimensionalConfiguration}
- * schema please the documentation for the {@link DimensionalConfiguration} class. An example of a valid
+ * times for the App Data dimensions schema. For details on how to define the {@link DimensionalConfigurationSchema}
+ * schema please the documentation for the {@link DimensionalConfigurationSchema} class. An example of a valid
  * schema stub which defines the from and to times is below:
  * <br/>
  * <br/>
  * {@code
  * {
- *   "time":
- *   {
- *     "from":1123455556656,
- *     "to":382390859384
- *   }
+ * "time":
+ * {
+ * "from":1123455556656,
+ * "to":382390859384
  * }
+ * }
+ *
+ * @since 3.1.0
  */
 public class DimensionalSchema implements Schema
 {
@@ -69,9 +71,19 @@ public class DimensionalSchema implements Schema
    * The JSON key string corresponding to the buckets field.
    */
   public static final String FIELD_TIME_BUCKETS = "buckets";
+  /**
+   * The JSON key string corresponding to the slidingAggregateSupported field.
+   */
+  public static final String FIELD_SLIDING_AGGREGATE_SUPPORTED = "slidingAggregateSupported";
+  /**
+   * The JSON key string used to identify the tags.
+   */
+  //TODO To be removed when Malhar Library 3.3 becomes a dependency.
+  private static final String FIELD_TAGS = "tags";
 
   public static final List<Fields> VALID_KEYS = ImmutableList.of(new Fields(Sets.newHashSet(FIELD_TIME)));
-  public static final List<Fields> VALID_TIME_KEYS = ImmutableList.of(new Fields(Sets.newHashSet(FIELD_TIME_FROM, FIELD_TIME_TO)));
+  public static final List<Fields> VALID_TIME_KEYS = ImmutableList.of(
+      new Fields(Sets.newHashSet(FIELD_TIME_FROM, FIELD_TIME_TO)));
 
   /**
    * The from value for the schema. Null if there is no from value.
@@ -146,92 +158,96 @@ public class DimensionalSchema implements Schema
   /**
    * This creates a {@link DimensionalSchema} object from the given schema stub,
    * configuration schema, and schema keys.
-   * @param schemaStub The schema stub to use when creating this {@link DimensionalSchema}.
+   *
+   * @param schemaStub          The schema stub to use when creating this {@link DimensionalSchema}.
    * @param configurationSchema The configuration schema to use when creating this {@link DimensionalSchema}.
-   * @param schemaKeys The schemaKeys to use when creating this {@link DimensionalSchema}.
+   * @param schemaKeys          The schemaKeys to use when creating this {@link DimensionalSchema}.
    */
   public DimensionalSchema(String schemaStub,
-                           DimensionalConfigurationSchema configurationSchema,
-                           Map<String, String> schemaKeys)
+      DimensionalConfigurationSchema configurationSchema,
+      Map<String, String> schemaKeys)
   {
     this(configurationSchema,
-         schemaKeys);
+        schemaKeys);
 
-    if(schemaStub != null) {
+    if (schemaStub != null) {
       predefinedFromTo = true;
       try {
         setSchemaStub(schemaStub);
-      }
-      catch(Exception e) {
+      } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
   }
 
   /**
-   * This creates a {@link DimensionalSchema} object from the given schemaID, schemaStrub,configurationSchema, and schemaKeys.
-   * @param schemaID The schemaID assigned to this schema.
-   * @param schemaStub The schema stub to use when creating this {@link DimensionalSchema}.
+   * This creates a {@link DimensionalSchema} object from the given schemaID, schemaStrub,configurationSchema, and
+   * schemaKeys.
+   *
+   * @param schemaID            The schemaID assigned to this schema.
+   * @param schemaStub          The schema stub to use when creating this {@link DimensionalSchema}.
    * @param configurationSchema The configuration schema to use when creating this {@link DimensionalSchema}.
-   * @param schemaKeys The schemaKeys to use when creating this {@link DimensionalSchema}.
+   * @param schemaKeys          The schemaKeys to use when creating this {@link DimensionalSchema}.
    */
   public DimensionalSchema(int schemaID,
-                           String schemaStub,
-                           DimensionalConfigurationSchema configurationSchema,
-                           Map<String, String> schemaKeys)
+      String schemaStub,
+      DimensionalConfigurationSchema configurationSchema,
+      Map<String, String> schemaKeys)
   {
     this(schemaStub,
-         configurationSchema,
-         schemaKeys);
+        configurationSchema,
+        schemaKeys);
 
     this.schemaID = schemaID;
   }
 
   /**
    * This creates a {@link DimensionalSchema} from the given schemaStub and configuration schema.
-   * @param schemaStub The schema stub to use when creating this {@link DimensionalSchema}.
+   *
+   * @param schemaStub          The schema stub to use when creating this {@link DimensionalSchema}.
    * @param configurationSchema The configuration schema to use when creating this {@link DimensionalSchema}.
    */
   public DimensionalSchema(String schemaStub,
-                           DimensionalConfigurationSchema configurationSchema)
+      DimensionalConfigurationSchema configurationSchema)
   {
     this(schemaStub,
-         configurationSchema,
-         null);
+        configurationSchema,
+        null);
   }
 
   /**
    * This creates a {@link DimensionalSchema} from the given schemaID, schemaStub, and
    * configurationSchema.
-   * @param schemaID The schemaID assigned to this schema.
-   * @param schemaStub The schema stub to use when creating this {@link DimensionalSchema}.
+   *
+   * @param schemaID            The schemaID assigned to this schema.
+   * @param schemaStub          The schema stub to use when creating this {@link DimensionalSchema}.
    * @param configurationSchema The configuration schema to use when creating this {@link DimensionalSchema}.
    */
   public DimensionalSchema(int schemaID,
-                           String schemaStub,
-                           DimensionalConfigurationSchema configurationSchema)
+      String schemaStub,
+      DimensionalConfigurationSchema configurationSchema)
   {
     this(schemaStub,
-         configurationSchema);
+        configurationSchema);
 
     this.schemaID = schemaID;
   }
 
   /**
    * Creates a {@link DimensionalSchema} from the given configuration schema and schema keys.
+   *
    * @param configurationSchema The configuration schema from which to construct this {@link DimensionalEventSchema}.
-   * @param schemaKeys The schemaKeys assigned to this schema.
+   * @param schemaKeys          The schemaKeys assigned to this schema.
    */
   public DimensionalSchema(DimensionalConfigurationSchema configurationSchema,
-                           Map<String, String> schemaKeys)
+      Map<String, String> schemaKeys)
   {
     setConfigurationSchema(configurationSchema);
     setSchemaKeys(schemaKeys);
 
     try {
       initialize();
-    }
-    catch(JSONException e) {
+    } catch (JSONException e) {
       throw new RuntimeException(e);
     }
   }
@@ -239,39 +255,42 @@ public class DimensionalSchema implements Schema
   /**
    * Creates a {@link DimensionalSchema} object from the given schemaID, configurationSchema,
    * and schemaKeys.
-   * @param schemaID The schemaID assigned to this schema.
+   *
+   * @param schemaID            The schemaID assigned to this schema.
    * @param configurationSchema The configuration schema from which this schema was constructed.
-   * @param schemaKeys The schema keys assigned to this schema.
+   * @param schemaKeys          The schema keys assigned to this schema.
    */
   public DimensionalSchema(int schemaID,
-                           DimensionalConfigurationSchema configurationSchema,
-                           Map<String, String> schemaKeys)
+      DimensionalConfigurationSchema configurationSchema,
+      Map<String, String> schemaKeys)
   {
     this(configurationSchema,
-         schemaKeys);
+        schemaKeys);
 
     this.schemaID = schemaID;
   }
 
   /**
    * Creates a {@link DimensionalSchema} object from the given configuration schema.
+   *
    * @param configurationSchema The configuration schema from which to construct this
-   * schema.
+   *                            schema.
    */
   public DimensionalSchema(DimensionalConfigurationSchema configurationSchema)
   {
     this(configurationSchema,
-         null);
+        null);
   }
 
   /**
    * Creates a {@link DimensionalSchema} object with the given schema ID and
    * configuration schema.
-   * @param schemaID The schemaID assigned to this schema.
+   *
+   * @param schemaID            The schemaID assigned to this schema.
    * @param configurationSchema The configuration schema from which this schema as constructed.
    */
   public DimensionalSchema(int schemaID,
-                           DimensionalConfigurationSchema configurationSchema)
+      DimensionalConfigurationSchema configurationSchema)
   {
     this(configurationSchema);
     this.schemaID = schemaID;
@@ -279,6 +298,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * Returns the aggregator registry assigned to this schema object.
+   *
    * @return The aggregator registry.
    */
   public AggregatorRegistry getAggregatorRegistry()
@@ -292,12 +312,12 @@ public class DimensionalSchema implements Schema
     changed = true;
     changedSchemaKeys = true;
 
-    if(schemaKeys == null) {
+    if (schemaKeys == null) {
       this.schemaKeys = null;
       return;
     }
 
-    for(Map.Entry<String, String> entry: schemaKeys.entrySet()) {
+    for (Map.Entry<String, String> entry : schemaKeys.entrySet()) {
       Preconditions.checkNotNull(entry.getKey());
       Preconditions.checkNotNull(entry.getValue());
     }
@@ -307,6 +327,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * This is a helper method for setting the configuration schema.
+   *
    * @param configurationSchema The configuration schema.
    */
   private void setConfigurationSchema(DimensionalConfigurationSchema configurationSchema)
@@ -316,6 +337,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * This is a helper method extracts and validates the information contained in the schema stub for this schema.
+   *
    * @param schemaStub The schema stub to extract information from and validate.
    * @throws JSONException This exception is thrown if there is an error processing the provided JSON schemaStub.
    */
@@ -333,29 +355,46 @@ public class DimensionalSchema implements Schema
 
   /**
    * Initializes the schema JSON and schema metadata.
+   *
    * @throws JSONException This exception is thrown when there is an
-   * exception building the schema for the AppData dimensions schema.
+   *                       exception building the schema for the AppData dimensions schema.
    */
   private void initialize() throws JSONException
   {
     schema = new JSONObject();
 
-    if(schemaKeys != null) {
+    if (schemaKeys != null) {
       schema.put(Schema.FIELD_SCHEMA_KEYS,
-                      SchemaUtils.createJSONObject(schemaKeys));
+          SchemaUtils.createJSONObject(schemaKeys));
     }
 
     schema.put(SnapshotSchema.FIELD_SCHEMA_TYPE, DimensionalSchema.SCHEMA_TYPE);
     schema.put(SnapshotSchema.FIELD_SCHEMA_VERSION, DimensionalSchema.SCHEMA_VERSION);
+
+    if (!configurationSchema.getTags().isEmpty()) {
+      schema.put(FIELD_TAGS, new JSONArray(configurationSchema.getTags()));
+    }
 
     //time
     time = new JSONObject();
     schema.put(FIELD_TIME, time);
     JSONArray bucketsArray = new JSONArray(configurationSchema.getBucketsString());
     time.put(FIELD_TIME_BUCKETS, bucketsArray);
+    time.put(FIELD_SLIDING_AGGREGATE_SUPPORTED, true);
 
     //keys
     keys = new JSONArray(configurationSchema.getKeysString());
+
+    for (int keyIndex = 0; keyIndex < keys.length(); keyIndex++) {
+      JSONObject keyJo = keys.getJSONObject(keyIndex);
+      String keyName = keyJo.getString(DimensionalConfigurationSchema.FIELD_KEYS_NAME);
+      List<String> tags = configurationSchema.getKeyToTags().get(keyName);
+
+      if (!tags.isEmpty()) {
+        keyJo.put(FIELD_TAGS, new JSONArray(tags));
+      }
+    }
+
     schema.put(DimensionalConfigurationSchema.FIELD_KEYS, keys);
 
     //values
@@ -365,71 +404,78 @@ public class DimensionalSchema implements Schema
     FieldsDescriptor inputValuesDescriptor = configurationSchema.getInputValuesDescriptor();
     Map<String, Map<String, Type>> allValueToAggregator = configurationSchema.getSchemaAllValueToAggregatorToType();
 
-    for(Map.Entry<String, Map<String, Type>> entry: allValueToAggregator.entrySet()) {
+    for (Map.Entry<String, Map<String, Type>> entry : allValueToAggregator.entrySet()) {
       String valueName = entry.getKey();
 
-      for(Map.Entry<String, Type> entryAggType: entry.getValue().entrySet()) {
+      for (Map.Entry<String, Type> entryAggType : entry.getValue().entrySet()) {
         String aggregatorName = entryAggType.getKey();
         Type outputValueType = entryAggType.getValue();
 
         JSONObject value = new JSONObject();
         String combinedName = valueName +
-                              DimensionalConfigurationSchema.ADDITIONAL_VALUE_SEPERATOR +
-                              aggregatorName;
+            DimensionalConfigurationSchema.ADDITIONAL_VALUE_SEPERATOR +
+            aggregatorName;
         value.put(SnapshotSchema.FIELD_VALUES_NAME, combinedName);
         value.put(SnapshotSchema.FIELD_VALUES_TYPE, outputValueType.getName());
+
+        List<String> tags = configurationSchema.getValueToTags().get(valueName);
+
+        if (!tags.isEmpty()) {
+          value.put(FIELD_TAGS, new JSONArray(tags));
+        }
+
         values.put(value);
       }
     }
 
     JSONArray dimensions = new JSONArray();
 
-    for(int combinationID = 0;
+    for (int combinationID = 0;
         combinationID < configurationSchema.getDimensionsDescriptorIDToKeys().size();
         combinationID++) {
 
       Fields fields = configurationSchema.getDimensionsDescriptorIDToKeys().get(combinationID);
       Map<String, Set<String>> fieldToAggregatorAdditionalValues =
-      configurationSchema.getDimensionsDescriptorIDToFieldToAggregatorAdditionalValues().get(combinationID);
+          configurationSchema.getDimensionsDescriptorIDToFieldToAggregatorAdditionalValues().get(combinationID);
 
       JSONObject combination = new JSONObject();
       JSONArray combinationArray = new JSONArray();
 
-      for(String field: fields.getFields()) {
+      for (String field : fields.getFields()) {
         combinationArray.put(field);
       }
 
       combination.put(DimensionalConfigurationSchema.FIELD_DIMENSIONS_COMBINATIONS, combinationArray);
 
-      if(!fieldToAggregatorAdditionalValues.isEmpty()) {
+      if (!fieldToAggregatorAdditionalValues.isEmpty()) {
         JSONArray additionalValueArray = new JSONArray();
 
-        for(Map.Entry<String, Set<String>> entry: fieldToAggregatorAdditionalValues.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : fieldToAggregatorAdditionalValues.entrySet()) {
           String valueName = entry.getKey();
 
-          for(String aggregatorName: entry.getValue()) {
+          for (String aggregatorName : entry.getValue()) {
             JSONObject additionalValueObject = new JSONObject();
             String combinedName = valueName
-                                  + DimensionalConfigurationSchema.ADDITIONAL_VALUE_SEPERATOR
-                                  + aggregatorName;
+                + DimensionalConfigurationSchema.ADDITIONAL_VALUE_SEPERATOR
+                + aggregatorName;
             Type inputValueType = inputValuesDescriptor.getType(valueName);
 
-            if(!configurationSchema.getAggregatorRegistry().isAggregator(aggregatorName)) {
-              if(aggregatorName == null) {
+            if (!configurationSchema.getAggregatorRegistry().isAggregator(aggregatorName)) {
+              if (aggregatorName == null) {
                 LOG.error("{} is not a valid aggregator.", aggregatorName);
               }
             }
 
             Type outputValueType;
 
-            if(configurationSchema.getAggregatorRegistry().isIncrementalAggregator(aggregatorName)) {
+            if (configurationSchema.getAggregatorRegistry().isIncrementalAggregator(aggregatorName)) {
               IncrementalAggregator aggregator
-                      = configurationSchema.getAggregatorRegistry().getNameToIncrementalAggregator().get(aggregatorName);
+                  = configurationSchema.getAggregatorRegistry().getNameToIncrementalAggregator().get(aggregatorName);
 
               outputValueType = aggregator.getOutputType(inputValueType);
-            }
-            else {
-              outputValueType = configurationSchema.getAggregatorRegistry().getNameToOTFAggregators().get(aggregatorName).getOutputType();
+            } else {
+              outputValueType = configurationSchema.getAggregatorRegistry().getNameToOTFAggregators().get(
+                  aggregatorName).getOutputType();
             }
 
             additionalValueObject.put(DimensionalConfigurationSchema.FIELD_VALUES_NAME, combinedName);
@@ -451,6 +497,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * Sets the from time for the schema.
+   *
    * @param from The from time for the schema.
    */
   public void setFrom(Long from)
@@ -462,6 +509,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * Sets the to time for the schema.
+   *
    * @param to The to time for the schema.
    */
   public void setTo(Long to)
@@ -473,6 +521,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * Sets the new enum lists for this schema. The sets in the provided maps are converted into lists.
+   *
    * @param enums The new enum sets for this schema.
    */
   public void setEnumsSet(Map<String, Set<Object>> enums)
@@ -484,21 +533,21 @@ public class DimensionalSchema implements Schema
 
     //Check that all the given keys are valid
     Preconditions.checkArgument(
-            configurationSchema.getKeyDescriptor().getFields().getFields().containsAll(enums.keySet()),
-            "The given map doesn't contain valid keys. Valid keys are %s and the provided keys are %s",
-            configurationSchema.getKeyDescriptor().getFields().getFields(),
-            enums.keySet());
+        configurationSchema.getKeyDescriptor().getFields().getFields().containsAll(enums.keySet()),
+        "The given map doesn't contain valid keys. Valid keys are %s and the provided keys are %s",
+        configurationSchema.getKeyDescriptor().getFields().getFields(),
+        enums.keySet());
 
     //Todo check the type of the objects, for now just set them on the enum.
 
-    for(Map.Entry<String, Set<Object>> entry: enums.entrySet()) {
+    for (Map.Entry<String, Set<Object>> entry : enums.entrySet()) {
       String name = entry.getKey();
       Set<Object> vals = entry.getValue();
 
       Preconditions.checkNotNull(name);
       Preconditions.checkNotNull(vals);
 
-      for(Object value: entry.getValue()) {
+      for (Object value : entry.getValue()) {
         Preconditions.checkNotNull(value);
       }
 
@@ -512,9 +561,10 @@ public class DimensionalSchema implements Schema
   /**
    * Sets the new enum lists for this schema. The sets in the provided maps are converted into lists, and
    * sorted according to their natural ordering.
+   *
    * @param enums The new enum sets for this schema.
    */
-  @SuppressWarnings({"rawtypes","unchecked"})
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void setEnumsSetComparable(Map<String, Set<Comparable>> enums)
   {
     Preconditions.checkNotNull(enums);
@@ -524,26 +574,26 @@ public class DimensionalSchema implements Schema
 
     //Check that all the given keys are valid
     Preconditions.checkArgument(
-            configurationSchema.getKeyDescriptor().getFields().getFields().containsAll(enums.keySet()),
-            "The given map doesn't contain valid keys. Valid keys are %s and the provided keys are %s",
-            configurationSchema.getKeyDescriptor().getFields().getFields(),
-            enums.keySet());
+        configurationSchema.getKeyDescriptor().getFields().getFields().containsAll(enums.keySet()),
+        "The given map doesn't contain valid keys. Valid keys are %s and the provided keys are %s",
+        configurationSchema.getKeyDescriptor().getFields().getFields(),
+        enums.keySet());
 
     //Todo check the type of the objects, for now just set them on the enum.
-    for(Map.Entry<String, Set<Comparable>> entry: enums.entrySet()) {
+    for (Map.Entry<String, Set<Comparable>> entry : enums.entrySet()) {
       String name = entry.getKey();
       Set<Comparable> vals = entry.getValue();
 
       Preconditions.checkNotNull(name);
       Preconditions.checkNotNull(vals);
 
-      for(Object value: entry.getValue()) {
+      for (Object value : entry.getValue()) {
         Preconditions.checkNotNull(value);
       }
 
       List<Comparable> valsListComparable = Lists.newArrayList(vals);
       Collections.sort(valsListComparable);
-      List<Object> valsList = (List) valsListComparable;
+      List<Object> valsList = (List)valsListComparable;
       enumsList.put(name, valsList);
     }
 
@@ -552,6 +602,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * Sets the new enum lists for this schema.
+   *
    * @param enums The new enum lists for this schema.
    */
   public void setEnumsList(Map<String, List<Object>> enums)
@@ -561,25 +612,25 @@ public class DimensionalSchema implements Schema
 
     //Check that all the given keys are valid
     Preconditions.checkArgument(
-            configurationSchema.getKeyDescriptor().getFields().getFields().containsAll(enums.keySet()),
-            "The given map doesn't contain valid keys. Valid keys are %s and the provided keys are %s",
-            configurationSchema.getKeyDescriptor().getFields().getFields(),
-            enums.keySet());
+        configurationSchema.getKeyDescriptor().getFields().getFields().containsAll(enums.keySet()),
+        "The given map doesn't contain valid keys. Valid keys are %s and the provided keys are %s",
+        configurationSchema.getKeyDescriptor().getFields().getFields(),
+        enums.keySet());
 
     //Todo check the type of the objects, for now just set them on the enum.
-    for(Map.Entry<String, List<Object>> entry: enums.entrySet()) {
+    for (Map.Entry<String, List<Object>> entry : enums.entrySet()) {
       Preconditions.checkNotNull(entry.getKey());
       Preconditions.checkNotNull(entry.getValue());
     }
 
     Map<String, List<Object>> tempEnums = Maps.newHashMap();
 
-    for(Map.Entry<String, List<Object>> entry: enums.entrySet()) {
+    for (Map.Entry<String, List<Object>> entry : enums.entrySet()) {
       String key = entry.getKey();
       List<?> enumValues = entry.getValue();
       List<Object> tempEnumValues = Lists.newArrayList();
 
-      for(Object enumValue: enumValues) {
+      for (Object enumValue : enumValues) {
         tempEnumValues.add(enumValue);
       }
 
@@ -592,57 +643,53 @@ public class DimensionalSchema implements Schema
   @Override
   public String getSchemaJSON()
   {
-    if(!changed && schemaJSON != null) {
+    if (!changed && schemaJSON != null) {
       //If there are no changes, return the pre computed JSON
       return schemaJSON;
     }
 
-    if(changedSchemaKeys) {
+    if (changedSchemaKeys) {
       //If the schema keys change, recompute the schema keys portion of the JSON
       changedSchemaKeys = false;
 
-      if(schemaKeys == null) {
+      if (schemaKeys == null) {
         schema.remove(Schema.FIELD_SCHEMA_KEYS);
-      }
-      else {
+      } else {
         try {
           schema.put(Schema.FIELD_SCHEMA_KEYS,
-                          SchemaUtils.createJSONObject(schemaKeys));
-        }
-        catch(JSONException ex) {
+              SchemaUtils.createJSONObject(schemaKeys));
+        } catch (JSONException ex) {
           throw new RuntimeException(ex);
         }
       }
     }
 
-    if(changedFromTo) {
+    if (changedFromTo) {
       //If the from to times have changed then recompute the time portion of the schema.
       changedFromTo = false;
       Preconditions.checkState(!(from == null ^ to == null),
-                               "Either both from and to should be set or both should be not set.");
+          "Either both from and to should be set or both should be not set.");
 
-      if(from != null) {
+      if (from != null) {
         Preconditions.checkState(to >= from, "to {} must be greater than or equal to from {}.", to, from);
       }
 
-      if(from == null) {
+      if (from == null) {
         time.remove(FIELD_TIME_FROM);
         time.remove(FIELD_TIME_TO);
-      }
-      else {
+      } else {
         try {
           time.put(FIELD_TIME_FROM, from);
           time.put(FIELD_TIME_TO, to);
-        }
-        catch(JSONException ex) {
+        } catch (JSONException ex) {
           throw new RuntimeException(ex);
         }
       }
     }
 
-    if(this.areEnumsUpdated) {
+    if (this.areEnumsUpdated) {
       //If the enums have been updated, recompute the key portion of the schema.
-      for(int keyIndex = 0;
+      for (int keyIndex = 0;
           keyIndex < keys.length();
           keyIndex++) {
         JSONObject keyData;
@@ -651,28 +698,26 @@ public class DimensionalSchema implements Schema
         try {
           keyData = keys.getJSONObject(keyIndex);
           name = keyData.getString(DimensionalConfigurationSchema.FIELD_KEYS_NAME);
-        }
-        catch(JSONException ex) {
+        } catch (JSONException ex) {
           throw new RuntimeException(ex);
         }
 
         List<Object> enumVals = currentEnumVals.get(name);
 
-        if(enumVals == null || enumVals.isEmpty()) {
+        if (enumVals == null || enumVals.isEmpty()) {
           keyData.remove(DimensionalConfigurationSchema.FIELD_KEYS_ENUMVALUES);
           continue;
         }
 
         JSONArray newEnumValues = new JSONArray();
 
-        for(Object enumVal: enumVals) {
+        for (Object enumVal : enumVals) {
           newEnumValues.put(enumVal);
         }
 
         try {
           keyData.put(DimensionalConfigurationSchema.FIELD_KEYS_ENUMVALUES, newEnumValues);
-        }
-        catch(JSONException ex) {
+        } catch (JSONException ex) {
           throw new RuntimeException(ex);
         }
       }
@@ -687,6 +732,7 @@ public class DimensionalSchema implements Schema
 
   /**
    * Gets the {@link DimensionalConfigurationSchema} from which this {@link DimensionalSchema}.
+   *
    * @return The {@link DimensionalConfigurationSchema} from which this {@link DimensionalSchema} was
    * constructed.
    */
@@ -714,7 +760,6 @@ public class DimensionalSchema implements Schema
   }
 
   /**
-   *
    * @return the predefinedFromTo
    */
   public boolean isPredefinedFromTo()
@@ -725,6 +770,7 @@ public class DimensionalSchema implements Schema
   /**
    * Returns the schema ID for this schema. This is only relevant for operators which
    * host multiple schemas.
+   *
    * @return The schema ID for this schema.
    */
   @Override
@@ -737,6 +783,7 @@ public class DimensionalSchema implements Schema
    * Returns the current enum vals for the schema. The current enum vals for the
    * schema are expressed in a map whose keys are the names of the keys in the schema, and whose
    * values are a list of possible values for the key.
+   *
    * @return the currentEnumVals The current enum vals for the schema.
    */
   public Map<String, List<Object>> getCurrentEnumVals()

@@ -39,8 +39,9 @@ import org.slf4j.LoggerFactory;
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.Operator;
 import com.datatorrent.common.util.NameableThreadFactory;
+import com.datatorrent.lib.fileaccess.FileAccess;
+import com.datatorrent.lib.fileaccess.TFileImpl;
 import com.datatorrent.netlet.util.Slice;
-import com.datatorrent.contrib.hdht.HDHTFileAccess.HDSFileReader;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.google.common.annotations.VisibleForTesting;
@@ -89,7 +90,7 @@ public class HDHTReader implements Operator, HDHT.Reader
   protected Comparator<Slice> keyComparator = new DefaultKeyComparator();
   @Valid
   @NotNull
-  protected HDHTFileAccess store;
+  protected FileAccess store = new TFileImpl.DTFileImpl();
 
   protected BucketMeta loadBucketMeta(long bucketKey)
   {
@@ -134,12 +135,12 @@ public class HDHTReader implements Operator, HDHT.Reader
   }
 
 
-  public HDHTFileAccess getFileStore()
+  public FileAccess getFileStore()
   {
     return store;
   }
 
-  public void setFileStore(HDHTFileAccess fileStore)
+  public void setFileStore(FileAccess fileStore)
   {
     this.store = fileStore;
   }
@@ -261,7 +262,7 @@ public class HDHTReader implements Operator, HDHT.Reader
       }
 
       try {
-        HDSFileReader reader = bucket.readers.get(floorEntry.getValue().name);
+        FileAccess.FileReader reader = bucket.readers.get(floorEntry.getValue().name);
         if (reader == null) {
           LOG.debug("Opening file {} {}", bucketKey, floorEntry.getValue().name);
           bucket.readers.put(floorEntry.getValue().name, reader = store.getReader(bucketKey, floorEntry.getValue().name));
@@ -346,6 +347,7 @@ public class HDHTReader implements Operator, HDHT.Reader
     protected BucketMeta(Comparator<Slice> cmp)
     {
       files = new TreeMap<Slice, BucketFileMeta>(cmp);
+      recoveryStartWalPosition = new HDHTWalManager.WalPosition(0,0);
     }
 
     @SuppressWarnings("unused")
@@ -377,12 +379,12 @@ public class HDHTReader implements Operator, HDHT.Reader
   private static class BucketReader implements Closeable
   {
     BucketMeta bucketMeta;
-    final ConcurrentMap<String, HDSFileReader> readers = Maps.newConcurrentMap();
+    final ConcurrentMap<String, FileAccess.FileReader> readers = Maps.newConcurrentMap();
 
     @Override
     public void close() throws IOException
     {
-      for (HDSFileReader reader : readers.values()) {
+      for (FileAccess.FileReader reader : readers.values()) {
         reader.close();
       }
     }

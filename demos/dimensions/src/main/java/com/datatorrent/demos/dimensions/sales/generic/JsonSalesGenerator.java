@@ -24,9 +24,9 @@ import java.util.Random;
 /**
  * Generates sales events data and sends them out as JSON encoded byte arrays.
  * <p>
- * Sales events are JSON string encoded as byte arrays.  All id's are expected to be positive integers, and default to 1.
- * Transaction amounts are double values with two decimal places.  Timestamp is unix epoch in milliseconds.
- * Product categories are not assigned by default.  They are expected to be added by the Enrichment operator, but can be
+ * Sales events are JSON string encoded as byte arrays. All id's are expected to be positive integers, and default to 1.
+ * Transaction amounts are double values with two decimal places. Timestamp is unix epoch in milliseconds.
+ * Product categories are not assigned by default. They are expected to be added by the Enrichment operator, but can be
  * enabled with addProductCategory override.
  *
  * Example Sales Event
@@ -37,14 +37,14 @@ import java.util.Random;
  *    "productCategory": 0,
  *    "regionId": 2,
  *    "channelId": 3,
- *    "amount": 107.99,
+ *    "sales": 107.99,
  *    "tax": 7.99,
  *    "discount": 15.73,
  *    "timestamp": 1412897574000
  * }
  *
  * @displayName JSON Sales Event Generator
- * @category Input
+ * @category Test Bench
  * @tags input, generator, json
  *
  * @since 2.0.0
@@ -75,7 +75,7 @@ public class JsonSalesGenerator implements InputGenerator<byte[]>
   @Min(0)
   private long maxTuplesPerWindow = 300;
 
-  // Maximum amount of deviation below the maximum tuples per window
+  // Maximum sales of deviation below the maximum tuples per window
   @Min(0)
   private int tuplesPerWindowDeviation = 200;
 
@@ -151,7 +151,7 @@ public class JsonSalesGenerator implements InputGenerator<byte[]>
     schema = new DimensionalSchema(new DimensionalConfigurationSchema(eventSchemaJSON,
                                                               AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY));
 
-    maxProductId = schema.getDimensionalConfigurationSchema().getKeysToEnumValuesList().get(KEY_PRODUCT).size();
+    maxProductId = 100;
     maxCustomerId = 30;
     maxChannelId = schema.getDimensionalConfigurationSchema().getKeysToEnumValuesList().get(KEY_CHANNEL).size();
     maxRegionId = schema.getDimensionalConfigurationSchema().getKeysToEnumValuesList().get(KEY_REGION).size();
@@ -224,17 +224,17 @@ public class JsonSalesGenerator implements InputGenerator<byte[]>
 
   SalesEvent generateSalesEvent() throws Exception {
     int regionId = regionalGenerator.next();
-    int productId = randomId(maxProductId) - 1;
+    int productId = randomId(maxProductId);
     int channelId = channelGenerator.next();
 
     SalesEvent salesEvent = new SalesEvent();
     salesEvent.time = System.currentTimeMillis();
-    salesEvent.product = (String) schema.getDimensionalConfigurationSchema().getKeysToEnumValuesList().get(KEY_PRODUCT).get(productId);
+    salesEvent.productId = productId;
     salesEvent.channel = (String) schema.getDimensionalConfigurationSchema().getKeysToEnumValuesList().get(KEY_CHANNEL).get(channelId);
     salesEvent.region = (String) schema.getDimensionalConfigurationSchema().getKeysToEnumValuesList().get(KEY_REGION).get(regionId);
-    salesEvent.amount = randomAmount(minAmount, maxAmount);
-    salesEvent.tax = calculateTax(salesEvent.amount, regionId);
-    salesEvent.discount = calculateDiscount(salesEvent.amount, channelId, regionId);
+    salesEvent.sales = randomAmount(minAmount, maxAmount);
+    salesEvent.tax = calculateTax(salesEvent.sales, regionId);
+    salesEvent.discount = calculateDiscount(salesEvent.sales, channelId, regionId);
 
     return salesEvent;
   }
@@ -274,7 +274,7 @@ public class JsonSalesGenerator implements InputGenerator<byte[]>
     return Math.floor(rawAmount * 100) / 100;
   }
 
-  // Generate random tax given transaction amount
+  // Generate random tax given transaction sales
   private double randomPercent(double amount, double percent) {
     double tax = amount * ( random.nextDouble() * percent);
     return Math.floor(tax * 100) / 100;
@@ -388,12 +388,12 @@ class SalesEvent {
 
   /* dimension keys */
   public long time;
-  public String product;
+  public int productId;
   public String customer;
   public String channel;
   public String region;
   /* metrics */
-  public double amount;
+  public double sales;
   public double discount;
   public double tax;
 }

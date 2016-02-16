@@ -30,7 +30,7 @@ import com.datatorrent.api.Operator;
  * A {@link Unifier} implementation for {@link DimensionsComputation}.<br/>
  * <p>
  * @displayName Dimension Computation Unifier Implementation
- * @category Statistics
+ * @category Stats and Aggregations
  * @tags event, dimension, aggregation, computation
  * @param <EVENT>
  * @since 0.9.4
@@ -41,7 +41,7 @@ public class DimensionsComputationUnifierImpl<EVENT, AGGREGATE extends Dimension
   private DimensionsComputation.Aggregator<EVENT, AGGREGATE>[] aggregators;
   @NotNull
   private final Map<AGGREGATE, AGGREGATE> aggregates;
-  
+
   /**
    * Output port that emits an aggregate of events.
    */
@@ -49,7 +49,7 @@ public class DimensionsComputationUnifierImpl<EVENT, AGGREGATE extends Dimension
 
   public DimensionsComputationUnifierImpl()
   {
-    /** for kryo serialization */
+    /* for kryo serialization */
     aggregators = null;
     aggregates = Maps.newHashMap();
   }
@@ -77,6 +77,7 @@ public class DimensionsComputationUnifierImpl<EVENT, AGGREGATE extends Dimension
     }
   }
 
+  @Override
   public void endWindow()
   {
     for (AGGREGATE value : aggregates.values()) {
@@ -84,4 +85,5 @@ public class DimensionsComputationUnifierImpl<EVENT, AGGREGATE extends Dimension
     }
     aggregates.clear();
   }
+
 }

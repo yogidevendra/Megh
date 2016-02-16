@@ -27,7 +27,7 @@ import com.datatorrent.lib.dimensions.aggregator.AggregatorRegistry;
 
 public class DimensionalSchemaTest
 {
-  private static final Logger logger = LoggerFactory.getLogger(DimensionalSchemaTest.class);
+  private static final String FIELD_TAGS = "tags";
 
   public DimensionalSchemaTest()
   {
@@ -46,8 +46,35 @@ public class DimensionalSchemaTest
     DimensionalConfigurationSchema des =
     new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSchemaNoEnums.json"),
     AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+  }
 
+  @Test
+  public void noTimeTest() throws Exception
+  {
+    String resultSchema = produceSchema("adsGenericEventSchemaNoTime.json");
 
+    Map<String, String> valueToType = Maps.newHashMap();
+    valueToType.put("impressions:SUM", "long");
+    valueToType.put("clicks:SUM", "long");
+    valueToType.put("cost:SUM", "double");
+    valueToType.put("revenue:SUM", "double");
+
+    @SuppressWarnings("unchecked")
+    List<Set<String>> dimensionCombinationsList = Lists.newArrayList((Set<String>)new HashSet<String>(),
+                                                                     Sets.newHashSet("location"),
+                                                                     Sets.newHashSet("advertiser"),
+                                                                     Sets.newHashSet("publisher"),
+                                                                     Sets.newHashSet("location", "advertiser"),
+                                                                     Sets.newHashSet("location", "publisher"),
+                                                                     Sets.newHashSet("advertiser", "publisher"),
+                                                                     Sets.newHashSet("location", "advertiser", "publisher"));
+
+    basicSchemaChecker(resultSchema,
+                       Lists.newArrayList(TimeBucket.ALL.getText()),
+                       Lists.newArrayList("publisher", "advertiser", "location"),
+                       Lists.newArrayList("string", "string", "string"),
+                       valueToType,
+                       dimensionCombinationsList);
   }
 
   @Test
@@ -158,7 +185,7 @@ public class DimensionalSchemaTest
 
       JSONArray additionalValues = combination.getJSONArray("additionalValues");
 
-      logger.debug("additionalValues {}", additionalValues);
+      LOG.debug("additionalValues {}", additionalValues);
 
       for(int aIndex = 0;
           aIndex < additionalValues.length();
@@ -288,6 +315,75 @@ public class DimensionalSchemaTest
     Assert.assertEquals(expectedOutput, newEnums);
   }
 
+  @Test
+  public void testSchemaTags() throws Exception
+  {
+    List<String> expectedTags = Lists.newArrayList("geo", "bullet");
+    List<String> expectedKeyTags = Lists.newArrayList("geo.location");
+    List<String> expectedValueTagsLat = Lists.newArrayList("geo.lattitude");
+    List<String> expectedValueTagsLong = Lists.newArrayList("geo.longitude");
+
+    String eventSchemaJSON = SchemaUtils.jarResourceFileToString("adsGenericEventSchemaTags.json");
+    DimensionalSchema dimensional = new DimensionalSchema(
+      new DimensionalConfigurationSchema(eventSchemaJSON,
+                                         AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY));
+
+    String schemaJSON = dimensional.getSchemaJSON();
+
+    JSONObject jo = new JSONObject(schemaJSON);
+    List<String> tags = getStringList(jo.getJSONArray(FIELD_TAGS));
+    Assert.assertEquals(expectedTags, tags);
+
+    JSONArray keys = jo.getJSONArray(DimensionalConfigurationSchema.FIELD_KEYS);
+
+    List<String> keyTags = null;
+
+    for (int keyIndex = 0; keyIndex < keys.length(); keyIndex++) {
+      JSONObject key = keys.getJSONObject(keyIndex);
+
+      if (!key.has(FIELD_TAGS)) {
+        continue;
+      }
+
+      Assert.assertEquals("location", key.get(DimensionalConfigurationSchema.FIELD_KEYS_NAME));
+      keyTags = getStringList(key.getJSONArray(FIELD_TAGS));
+    }
+
+    Assert.assertTrue("No tags found for any key", keyTags != null);
+    Assert.assertEquals(expectedKeyTags, keyTags);
+
+    JSONArray values = jo.getJSONArray(DimensionalConfigurationSchema.FIELD_VALUES);
+
+    boolean valueTagsLat = false;
+    boolean valueTagsLong = false;
+
+    for (int valueIndex = 0; valueIndex < values.length(); valueIndex++) {
+      JSONObject value = values.getJSONObject(valueIndex);
+
+      if (!value.has(FIELD_TAGS)) {
+        continue;
+      }
+
+      String valueName = value.getString(DimensionalConfigurationSchema.FIELD_VALUES_NAME);
+      List<String> valueTags = getStringList(value.getJSONArray(FIELD_TAGS));
+
+      LOG.debug("value name: {}", valueName);
+
+      if (valueName.startsWith("impressions")) {
+        Assert.assertEquals(expectedValueTagsLat, valueTags);
+        valueTagsLat = true;
+      } else if (valueName.startsWith("clicks")) {
+        Assert.assertEquals(expectedValueTagsLong, valueTags);
+        valueTagsLong = true;
+      } else {
+        Assert.fail("There should be no tags for " + valueName);
+      }
+    }
+
+    Assert.assertTrue("No tags found for impressions", valueTagsLat);
+    Assert.assertTrue("No tags found for clicks", valueTagsLong);
+  }
+
   private String produceSchema(String resourceName) throws Exception
   {
     String eventSchemaJSON = SchemaUtils.jarResourceFileToString(resourceName);
@@ -302,6 +398,17 @@ public class DimensionalSchemaTest
     return dsf.serialize(result);
   }
 
+  private List<String> getStringList(JSONArray ja) throws Exception
+  {
+    List<String> stringsArray = Lists.newArrayList();
+
+    for (int index = 0; index < ja.length(); index++) {
+      stringsArray.add(ja.getString(index));
+    }
+
+    return stringsArray;
+  }
+
   private void basicSchemaChecker(String resultSchema,
                                   List<String> timeBuckets,
                                   List<String> keyNames,
@@ -309,6 +416,7 @@ public class DimensionalSchemaTest
                                   Map<String, String> valueToType,
                                   List<Set<String>> dimensionCombinationsList) throws Exception
   {
+    LOG.debug("Schema to check {}", resultSchema);
     JSONObject schemaJO = new JSONObject(resultSchema);
     JSONObject data = schemaJO.getJSONArray("data").getJSONObject(0);
 
@@ -375,4 +483,6 @@ public class DimensionalSchemaTest
       Assert.assertEquals(dimensionCombinationsList.get(index), dimensionCombination);
     }
   }
+
+  private static final Logger LOG = LoggerFactory.getLogger(DimensionalSchemaTest.class);
 }

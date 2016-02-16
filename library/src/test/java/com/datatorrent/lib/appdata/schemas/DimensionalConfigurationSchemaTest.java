@@ -4,6 +4,8 @@
  */
 package com.datatorrent.lib.appdata.schemas;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,6 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.codehaus.jettison.json.JSONArray;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import com.datatorrent.lib.appdata.schemas.DimensionalConfigurationSchema.DimensionsCombination;
 import com.datatorrent.lib.appdata.schemas.DimensionalConfigurationSchema.Key;
 import com.datatorrent.lib.appdata.schemas.DimensionalConfigurationSchema.Value;
+import com.datatorrent.lib.dimensions.DimensionsDescriptor;
 import com.datatorrent.lib.dimensions.aggregator.AggregatorIncrementalType;
 import com.datatorrent.lib.dimensions.aggregator.AggregatorRegistry;
 
@@ -337,4 +341,167 @@ public class DimensionalConfigurationSchemaTest
       }
     }
   }
+
+  @Test
+  public void testCustomTimeBuckets()
+  {
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSchemaCustomTimeBuckets.json"), AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+
+    Assert.assertEquals(3, schema.getTimeBuckets().size());
+
+    Assert.assertEquals(5, schema.getCustomTimeBuckets().size());
+    List<CustomTimeBucket> customTimeBuckets = Lists.newArrayList(new CustomTimeBucket(TimeBucket.MINUTE),
+                                                                  new CustomTimeBucket(TimeBucket.HOUR),
+                                                                  new CustomTimeBucket(TimeBucket.DAY),
+                                                                  new CustomTimeBucket(TimeBucket.MINUTE, 5),
+                                                                  new CustomTimeBucket(TimeBucket.HOUR, 3));
+    Assert.assertEquals(customTimeBuckets,
+                        schema.getCustomTimeBuckets());
+
+    Assert.assertEquals(40, schema.getDimensionsDescriptorIDToKeyDescriptor().size());
+
+    JSONArray timeBucketsArray = new JSONArray();
+    timeBucketsArray.put("1m").put("1h").put("1d").put("5m").put("3h");
+    Assert.assertEquals(timeBucketsArray.toString(), schema.getBucketsString());
+
+    CustomTimeBucket customTimeBucket = schema.getCustomTimeBucketRegistry().getTimeBucket(TimeBucket.MINUTE.ordinal());
+    Assert.assertTrue(customTimeBucket.isUnit());
+    Assert.assertEquals(TimeBucket.MINUTE, customTimeBucket.getTimeBucket());
+
+    customTimeBucket = schema.getCustomTimeBucketRegistry().getTimeBucket(TimeBucket.HOUR.ordinal());
+    Assert.assertTrue(customTimeBucket.isUnit());
+    Assert.assertEquals(TimeBucket.HOUR, customTimeBucket.getTimeBucket());
+
+    customTimeBucket = schema.getCustomTimeBucketRegistry().getTimeBucket(TimeBucket.DAY.ordinal());
+    Assert.assertTrue(customTimeBucket.isUnit());
+    Assert.assertEquals(TimeBucket.DAY, customTimeBucket.getTimeBucket());
+
+    int id5m = schema.getCustomTimeBucketRegistry().getTimeBucketId(new CustomTimeBucket(TimeBucket.MINUTE, 5));
+    int id3h = schema.getCustomTimeBucketRegistry().getTimeBucketId(new CustomTimeBucket(TimeBucket.HOUR, 3));
+
+    Assert.assertEquals(256, id5m);
+    Assert.assertEquals(257, id3h);
+
+    for (int ddID = 0; ddID < schema.getDimensionsDescriptorIDToDimensionsDescriptor().size(); ddID++) {
+      DimensionsDescriptor dd = schema.getDimensionsDescriptorIDToDimensionsDescriptor().get(ddID);
+
+      Assert.assertEquals(customTimeBuckets.get(ddID % 5), dd.getCustomTimeBucket());
+    }
+  }
+
+  @Test
+  public void testAllCombinationsGeneration()
+  {
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSimpleAllCombinations.json"), AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+
+    Set<DimensionsDescriptor> dimensionsDescriptors = Sets.newHashSet();
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(new HashSet<String>())));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("publisher"))));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("advertiser"))));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("location"))));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("publisher", "advertiser"))));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("publisher", "location"))));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("advertiser", "location"))));
+    dimensionsDescriptors.add(new DimensionsDescriptor(TimeBucket.MINUTE, new Fields(Sets.newHashSet("publisher", "advertiser", "location"))));
+
+    Set<DimensionsDescriptor> actualDimensionsDescriptors = Sets.newHashSet();
+
+    for (DimensionsDescriptor dimensionsDescriptor : schema.getDimensionsDescriptorToID().keySet()) {
+      actualDimensionsDescriptors.add(dimensionsDescriptor);
+    }
+
+    List<DimensionsDescriptor> ddList = Lists.newArrayList(dimensionsDescriptors);
+    List<DimensionsDescriptor> ddActualList = Lists.newArrayList(actualDimensionsDescriptors);
+
+    Collections.sort(ddList);
+    Collections.sort(ddActualList);
+
+    Assert.assertEquals(dimensionsDescriptors, actualDimensionsDescriptors);
+  }
+
+  public void testLoadingSchemaWithNoTimeBucket()
+  {
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSchemaNoTime.json"),
+                                                                               AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+
+    Assert.assertEquals(1, schema.getTimeBuckets().size());
+    Assert.assertEquals(TimeBucket.ALL, schema.getTimeBuckets().get(0));
+  }
+
+  /**
+   * A schema illustrating this corner case is as follows:
+   * <br/>
+   * <pre>
+   * {@code
+   * {"keys":[{"name":"publisher","type":"string"},
+   *      {"name":"advertiser","type":"string"},
+   *      {"name":"location","type":"string"}],
+   *  "timeBuckets":["1m"],
+   *  "values":
+   * [{"name":"impressions","type":"long","aggregators":["SUM"]},
+   *  {"name":"clicks","type":"long","aggregators":["SUM"]},
+   *  {"name":"cost","type":"double","aggregators":["SUM"]},
+   *  {"name":"revenue","type":"double"}],
+   *  "dimensions":
+   * [{"combination":[]},
+   *  {"combination":["location"],"additionalValues":["revenue:SUM"]}]
+   * }
+   * }
+   * </pre>
+   */
+  @Test
+  public void testAdditionalValuesOneCornerCase()
+  {
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSchemaAdditionalOne.json"), AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+    int sumID = AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY.getIncrementalAggregatorNameToID().get("SUM");
+
+    Assert.assertEquals(3, schema.getDimensionsDescriptorIDToAggregatorIDToOutputAggregatorDescriptor().get(0).get(sumID).getFieldList().size());
+    Assert.assertEquals(4, schema.getDimensionsDescriptorIDToAggregatorIDToOutputAggregatorDescriptor().get(1).get(sumID).getFieldList().size());
+  }
+
+  /**
+   * Tests to make sure that the correct number of dimension descriptors are produced when different time buckets are
+   * specified for each dimension combination.
+   */
+  @Test
+  public void testTimeBucketsDimensionCombination()
+  {
+    final int numDDIds = 11;
+    final int numCombinations = 3;
+
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSchemaDimensionTimeBuckets.json"), AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+
+    List<DimensionsDescriptor> dimensionsDescriptors = schema.getDimensionsDescriptorIDToDimensionsDescriptor();
+
+    Assert.assertEquals(numDDIds, dimensionsDescriptors.size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToAggregatorIDToInputAggregatorDescriptor().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToAggregatorIDToOutputAggregatorDescriptor().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToAggregatorIDs().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToAggregatorToAggregateDescriptor().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToDimensionsDescriptor().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToKeyDescriptor().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToOTFAggregatorToAggregateDescriptor().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToValueToAggregator().size());
+    Assert.assertEquals(numDDIds, schema.getDimensionsDescriptorIDToValueToOTFAggregator().size());
+
+    Assert.assertEquals(numCombinations, schema.getDimensionsDescriptorIDToFieldToAggregatorAdditionalValues().size());
+    Assert.assertEquals(numCombinations, schema.getDimensionsDescriptorIDToKeys().size());
+
+    String[] buckets = new String[]{"1m", "3d", "1h", "5s", "1m", "3d", "1m", "3d", "30s", "2h", "1d"};
+
+    for (int ddId = 0; ddId < numDDIds; ddId++) {
+      CustomTimeBucket customTimeBucket = dimensionsDescriptors.get(ddId).getCustomTimeBucket();
+      Assert.assertEquals(new CustomTimeBucket(buckets[ddId]), customTimeBucket);
+    }
+  }
+
+  @Test
+  public void testTimeBucketsBackwardCompatibility()
+  {
+    DimensionalConfigurationSchema schema = new DimensionalConfigurationSchema(SchemaUtils.jarResourceFileToString("adsGenericEventSchemaDimensionTimeBuckets.json"), AggregatorRegistry.DEFAULT_AGGREGATOR_REGISTRY);
+
+    Assert.assertEquals(2, schema.getCustomTimeBuckets().size());
+  }
+
+  private static final Logger LOG = LoggerFactory.getLogger(DimensionalConfigurationSchemaTest.class);
 }

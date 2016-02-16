@@ -6,7 +6,7 @@
   <parent>
     <groupId>com.datatorrent</groupId>
     <artifactId>dt-megh</artifactId>
-    <version>2.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>dt-library</artifactId>
@@ -164,6 +164,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-api</artifactId>
+      <version>${apex.core.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>1.7.5</version>
@@ -175,15 +180,15 @@
       <version>3.0.3</version>
     </dependency>
     <dependency>
-      <groupId>com.datatorrent</groupId>
+      <groupId>org.apache.apex</groupId>
       <artifactId>malhar-library</artifactId>
-      <version>2.2.0-SNAPSHOT</version>
+      <version>${malhar.version}</version>
       <type>jar</type>
     </dependency>
     <dependency>
-      <groupId>com.datatorrent</groupId>
+      <groupId>org.apache.apex</groupId>
       <artifactId>malhar-library</artifactId>
-      <version>2.2.0-SNAPSHOT</version>
+      <version>${malhar.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
@@ -194,9 +199,9 @@
       <type>jar</type>
     </dependency>
     <dependency>
-      <groupId>com.datatorrent</groupId>
-      <artifactId>dt-common</artifactId>
-      <version>2.2.0-SNAPSHOT</version>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-common</artifactId>
+      <version>${apex.core.version}</version>
       <type>jar</type>
     </dependency>
     <dependency>
@@ -210,6 +215,11 @@
       <version>2.7.8</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.sangupta</groupId>
+      <artifactId>murmur</artifactId>
+      <version>1.0.0</version>
+    </dependency>
   </dependencies>
 
   <profiles>
@@ -218,6 +228,42 @@
       <properties>
         <test.excludedGroups></test.excludedGroups>
       </properties>
+    </profile>
+    <profile>
+      <id>release</id>
+      <properties>
+        <source.skip>true</source.skip>
+      </properties>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>1.6</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <id>obfuscate</id>
+                <configuration>
+                  <target unless="${obfuscation.skip}">
+                    <echo message="running allatori"/>
+                    <property name="obf.jar" value="target/${project.build.finalName}.jar"/>
+                    <property name="compile_classpath" refid="maven.runtime.classpath"/>
+                    <taskdef name="allatori" classname="com.allatori.ant.ObfuscatorTask" classpath="${env.ALLATORI_LIB}/allatori.jar:${compile_classpath}"/>
+                    <allatori config="${basedir}/allatori-config.xml"/>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 

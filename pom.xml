@@ -3,16 +3,160 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.datatorrent</groupId>
-    <artifactId>dt-framework</artifactId>
-    <version>2.2.0-SNAPSHOT</version>
+    <groupId>org.apache.apex</groupId>
+    <artifactId>malhar</artifactId>
+    <version>3.3.0-incubating</version>
   </parent>
 
+  <groupId>com.datatorrent</groupId>
   <artifactId>dt-megh</artifactId>
-  <version>2.2.0-SNAPSHOT</version>
+  <version>3.3.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Megh</name>
+  <description>Megh proprietary operator libraries</description>
   <url>https://www.datatorrent.com/</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <semver.plugin.skip>false</semver.plugin.skip>
+    <malhar.version>3.3.0-incubating</malhar.version>
+  </properties>
+
+  <profiles>
+    <profile>
+      <activation>
+        <file>
+          <exists>src</exists>
+        </file>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.siom79.japicmp</groupId>
+            <artifactId>japicmp-maven-plugin</artifactId>
+            <version>0.5.3</version>
+            <configuration>
+              <oldVersion>
+                <dependency>
+                  <groupId>com.datatorrent</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.2.0</version>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <file>
+                  <path>${project.build.directory}/${project.artifactId}-${project.version}.jar</path>
+                </file>
+              </newVersion>
+              <parameter>
+                <onlyModified>true</onlyModified>
+                <accessModifier>protected</accessModifier>
+                <breakBuildOnModifications>false</breakBuildOnModifications>
+                <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                <onlyBinaryIncompatible>false</onlyBinaryIncompatible>
+                <includeSynthetic>false</includeSynthetic>
+                <ignoreMissingClasses>true</ignoreMissingClasses>
+                <excludes>
+                  <exclude>@org.apache.hadoop.classification.InterfaceStability.Evolving</exclude>
+                  <exclude>@org.apache.hadoop.classification.InterfaceStability.Unstable</exclude>
+                  <exclude>*ExternalizableSerializer#read(com.esotericsoftware.kryo.Kryo,com.esotericsoftware.kryo.io.Input, java.lang.Class)</exclude>
+                  <exclude>*#B(java.lang.String)</exclude>
+                  <exclude>*#G(java.lang.String)</exclude>
+                  <exclude>*#h(java.lang.String)</exclude>
+                  <!--Following exclusion should be removed once japi plugin is fixed. Currently exclusion based
+                  on annotation isn't working as expected-->
+                  <exclude>com.datatorrent.lib.appdata</exclude>
+                  <exclude>com.datatorrent.lib.bucket</exclude>
+                  <exclude>com.datatorrent.lib.dimensions</exclude>
+                  <exclude>com.datatorrent.contrib.hdht</exclude>
+                  <exclude>*POJO*</exclude>
+                </excludes>
+              </parameter>
+              <skip>${semver.plugin.skip}</skip>
+            </configuration>
+            <executions>
+              <execution>
+                <phase>verify</phase>
+                <goals>
+                  <goal>cmp</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <!-- copied from DTX pom.xml for release management -->
+    <profile>
+      <id>release</id>
+      <modules>
+      </modules>
+      <properties>
+        <maven.compiler.debug>false</maven.compiler.debug>
+        <maven.compiler.optimize>true</maven.compiler.optimize>
+        <maven.deploy.skip>false</maven.deploy.skip>
+        <maven.deploy.repo.classifier></maven.deploy.repo.classifier>
+        <distMgmtDevUrl>internal.repo::default::file://${project.build.directory}/mvn-repo</distMgmtDevUrl>
+        <distMgmtUrl>dav:http://www.datatorrent.com:8081/nexus/content/repositories</distMgmtUrl>
+        <package.prefix>/opt/datatorrent</package.prefix>
+        <package.groupname>dtorrent</package.groupname>
+      </properties>
+      <distributionManagement>
+        <repository>
+          <id>releases</id>
+          <name>DataTorrent Repository</name>
+          <url>${distMgmtUrl}/${maven.deploy.repo.classifier}releases/</url>
+        </repository>
+        <snapshotRepository>
+          <id>snapshots</id>
+          <name>DataTorrent Snapshots</name>
+          <url>${distMgmtUrl}/${maven.deploy.repo.classifier}snapshots/</url>
+        </snapshotRepository>
+      </distributionManagement>      
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>1.9.1</version>
+            <executions>
+              <execution>
+                <id>parse-version</id>
+                <goals>
+                  <goal>parse-version</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>apache-release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-disabled-profile</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <AlwaysFail/>
+                  </rules>
+                  <fail>true</fail>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
   <!-- repository to provide the DataTorrent artifacts -->
   <repositories>
@@ -20,30 +164,27 @@
       <id>ossrh</id>
       <name>Sonatype Snapshots Repository</name>
       <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
     </repository>
     <repository>
       <id>datatorrent</id>
       <name>DataTorrent Release Repository</name>
       <url>https://www.datatorrent.com/maven/content/repositories/releases/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
-
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <netbeans.hint.license>malhar-inc</netbeans.hint.license>
-    <maven.deploy.skip>false</maven.deploy.skip>
-    <dt.framework.version>2.2.0-SNAPSHOT</dt.framework.version>
-    <!-- the following properties match the properties defined in core/pom.xml -->
-    <jackson.version>1.9.2</jackson.version>
-    <jersey.version>1.9</jersey.version>
-    <jetty.version>8.1.10.v20130312</jetty.version>
-  </properties>
 
   <modules>
     <module>library</module>
     <module>contrib</module>
     <module>demos</module>
     <module>flume</module>
+    <module>modules</module>
+    <module>apps</module>
   </modules>
 
 </project>
