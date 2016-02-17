@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+
+  Copyright (c) 2016 DataTorrent, Inc.
+  All rights reserved.
+
+-->
+<configuration>
+  <property>
+    <name>dt.application.KinesisToS3.operator.*.attr.MEMORY_MB</name>
+    <value>1024</value>
+  </property>
+  <property>
+    <name>dt.application.KinesisToS3.attr.MASTER_MEMORY_MB</name>
+    <value>1024</value>
+  </property>
+</configuration>
+
