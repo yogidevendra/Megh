@@ -1,4 +1,4 @@
-package com.datatorrent.apps.ingestion.io.s3;
+package com.datatorrent.modules.app;
 
 import java.io.IOException;
 
@@ -9,7 +9,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
 import com.datatorrent.api.Context;
-import com.datatorrent.apps.ingestion.io.jms.BytesNonAppendFileOutputOperator;
 
 public class S3BytesFileOutputOperator extends BytesNonAppendFileOutputOperator
 {

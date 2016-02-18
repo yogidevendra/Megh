@@ -1,0 +1,135 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for com.datatorrent:kinesis-to-s3-app:jar:1.0.0-SNAPSHOT
+[WARNING] 'parent.relativePath' of POM com.datatorrent:kinesis-to-s3-app:[unknown-version] (/repo/Megh/apps/kinesis-to-s3-app/pom.xml) points at com.datatorrent:dt-apps instead of com.datatorrent:dt-module-apps, please verify your project structure @ com.datatorrent:kinesis-to-s3-app:[unknown-version], /repo/Megh/apps/kinesis-to-s3-app/pom.xml, line 10, column 11
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO]                                                                         
+[INFO] ------------------------------------------------------------------------
+[INFO] Building Amazon Kinesis to Amazon s3 copy application 1.0.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- maven-dependency-plugin:2.8:tree (default-cli) @ kinesis-to-s3-app ---
+[INFO] com.datatorrent:kinesis-to-s3-app:jar:1.0.0-SNAPSHOT
+[INFO] +- com.datatorrent:kafka-input-module:jar:1.0.0-SNAPSHOT:compile
+[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
+[INFO] |  +- org.apache.kafka:kafka_2.10:jar:0.8.1.1:compile
+[INFO] |  |  +- com.yammer.metrics:metrics-core:jar:2.2.0:compile
+[INFO] |  |  +- org.xerial.snappy:snappy-java:jar:1.0.5:compile
+[INFO] |  |  +- net.sf.jopt-simple:jopt-simple:jar:3.2:compile
+[INFO] |  |  +- org.scala-lang:scala-library:jar:2.10.1:compile
+[INFO] |  |  \- com.101tec:zkclient:jar:0.3:compile
+[INFO] |  \- com.datatorrent:dt-contrib:jar:3.3.0-SNAPSHOT:compile
+[INFO] +- com.datatorrent:hdfs-output-module:jar:1.0.0-SNAPSHOT:compile
+[INFO] +- junit:junit:jar:4.11:test
+[INFO] |  \- org.hamcrest:hamcrest-core:jar:1.3:test
+[INFO] +- org.apache.apex:apex-engine:jar:3.3.0-incubating-SNAPSHOT:test
+[INFO] |  +- org.apache.bval:bval-jsr303:jar:0.5:test
+[INFO] |  |  \- org.apache.bval:bval-core:jar:0.5:test
+[INFO] |  +- org.apache.apex:apex-bufferserver:jar:3.3.0-incubating-SNAPSHOT:test
+[INFO] |  +- org.apache.httpcomponents:httpclient:jar:4.3.5:test
+[INFO] |  |  +- org.apache.httpcomponents:httpcore:jar:4.3.2:test
+[INFO] |  |  \- commons-logging:commons-logging:jar:1.1.3:provided
+[INFO] |  +- com.sun.jersey.contribs:jersey-apache-client4:jar:1.9:test
+[INFO] |  |  \- com.sun.jersey:jersey-client:jar:1.9:test
+[INFO] |  +- org.apache.hadoop:hadoop-yarn-client:jar:2.2.0:test
+[INFO] |  |  +- org.apache.hadoop:hadoop-yarn-api:jar:2.2.0:test
+[INFO] |  |  +- org.apache.hadoop:hadoop-yarn-common:jar:2.2.0:test
+[INFO] |  |  +- org.slf4j:slf4j-api:jar:1.7.5:compile
+[INFO] |  |  +- org.slf4j:slf4j-log4j12:jar:1.7.5:provided
+[INFO] |  |  +- org.apache.hadoop:hadoop-annotations:jar:2.2.0:provided
+[INFO] |  |  |  \- jdk.tools:jdk.tools:jar:1.7:system
+[INFO] |  |  +- com.google.inject.extensions:guice-servlet:jar:3.0:test
+[INFO] |  |  +- io.netty:netty:jar:3.6.2.Final:provided
+[INFO] |  |  +- com.google.protobuf:protobuf-java:jar:2.5.0:provided
+[INFO] |  |  +- commons-io:commons-io:jar:2.1:provided
+[INFO] |  |  +- com.google.inject:guice:jar:3.0:test
+[INFO] |  |  |  +- javax.inject:javax.inject:jar:1:test
+[INFO] |  |  |  \- aopalliance:aopalliance:jar:1.0:test
+[INFO] |  |  +- com.sun.jersey.jersey-test-framework:jersey-test-framework-grizzly2:jar:1.9:test
+[INFO] |  |  |  +- com.sun.jersey.jersey-test-framework:jersey-test-framework-core:jar:1.9:test
+[INFO] |  |  |  |  \- javax.servlet:javax.servlet-api:jar:3.0.1:test
+[INFO] |  |  |  \- com.sun.jersey:jersey-grizzly2:jar:1.9:test
+[INFO] |  |  |     +- org.glassfish.grizzly:grizzly-http:jar:2.1.2:test
+[INFO] |  |  |     |  \- org.glassfish.grizzly:grizzly-framework:jar:2.1.2:test
+[INFO] |  |  |     |     \- org.glassfish.gmbal:gmbal-api-only:jar:3.0.0-b023:test
+[INFO] |  |  |     |        \- org.glassfish.external:management-api:jar:3.0.0-b012:test
+[INFO] |  |  |     +- org.glassfish.grizzly:grizzly-http-server:jar:2.1.2:test
+[INFO] |  |  |     |  \- org.glassfish.grizzly:grizzly-rcm:jar:2.1.2:test
+[INFO] |  |  |     +- org.glassfish.grizzly:grizzly-http-servlet:jar:2.1.2:test
+[INFO] |  |  |     \- org.glassfish:javax.servlet:jar:3.1:test
+[INFO] |  |  +- com.sun.jersey:jersey-server:jar:1.9:test
+[INFO] |  |  |  \- asm:asm:jar:3.1:test
+[INFO] |  |  +- com.sun.jersey:jersey-json:jar:1.9:provided
+[INFO] |  |  |  +- org.codehaus.jettison:jettison:jar:1.1:provided
+[INFO] |  |  |  |  \- stax:stax-api:jar:1.0.1:provided
+[INFO] |  |  |  \- com.sun.xml.bind:jaxb-impl:jar:2.2.3-1:provided
+[INFO] |  |  |     \- javax.xml.bind:jaxb-api:jar:2.2.2:provided
+[INFO] |  |  |        \- javax.activation:activation:jar:1.1:provided
+[INFO] |  |  \- com.sun.jersey.contribs:jersey-guice:jar:1.9:test
+[INFO] |  +- org.codehaus.jackson:jackson-mapper-asl:jar:1.9.2:provided
+[INFO] |  +- jline:jline:jar:2.11:test
+[INFO] |  +- org.apache.ant:ant:jar:1.9.2:test
+[INFO] |  |  \- org.apache.ant:ant-launcher:jar:1.9.2:test
+[INFO] |  +- net.engio:mbassador:jar:1.1.9:test
+[INFO] |  +- org.apache.hadoop:hadoop-common:test-jar:tests:2.2.0:test
+[INFO] |  |  +- com.google.guava:guava:jar:11.0.2:provided
+[INFO] |  |  |  \- com.google.code.findbugs:jsr305:jar:1.3.9:provided
+[INFO] |  |  +- commons-cli:commons-cli:jar:1.2:provided
+[INFO] |  |  +- org.apache.commons:commons-math:jar:2.1:provided
+[INFO] |  |  +- xmlenc:xmlenc:jar:0.52:provided
+[INFO] |  |  +- commons-httpclient:commons-httpclient:jar:3.1:provided
+[INFO] |  |  +- commons-net:commons-net:jar:3.1:provided
+[INFO] |  |  +- javax.servlet:servlet-api:jar:2.5:provided
+[INFO] |  |  +- org.mortbay.jetty:jetty:jar:6.1.26:provided
+[INFO] |  |  +- org.mortbay.jetty:jetty-util:jar:6.1.26:provided
+[INFO] |  |  +- tomcat:jasper-compiler:jar:5.5.23:provided
+[INFO] |  |  +- tomcat:jasper-runtime:jar:5.5.23:provided
+[INFO] |  |  +- javax.servlet.jsp:jsp-api:jar:2.1:provided
+[INFO] |  |  +- commons-el:commons-el:jar:1.0:provided
+[INFO] |  |  +- log4j:log4j:jar:1.2.17:provided
+[INFO] |  |  +- net.java.dev.jets3t:jets3t:jar:0.6.1:provided
+[INFO] |  |  +- commons-lang:commons-lang:jar:2.5:provided
+[INFO] |  |  +- commons-configuration:commons-configuration:jar:1.6:provided
+[INFO] |  |  |  +- commons-collections:commons-collections:jar:3.2.1:provided
+[INFO] |  |  |  \- commons-digester:commons-digester:jar:1.8:provided
+[INFO] |  |  +- org.apache.avro:avro:jar:1.7.4:test
+[INFO] |  |  |  \- com.thoughtworks.paranamer:paranamer:jar:2.3:test
+[INFO] |  |  +- org.apache.hadoop:hadoop-auth:jar:2.2.0:provided
+[INFO] |  |  +- com.jcraft:jsch:jar:0.1.42:provided
+[INFO] |  |  +- org.apache.zookeeper:zookeeper:jar:3.4.5:provided
+[INFO] |  |  \- org.apache.commons:commons-compress:jar:1.4.1:provided
+[INFO] |  |     \- org.tukaani:xz:jar:1.0:provided
+[INFO] |  +- net.lingala.zip4j:zip4j:jar:1.3.2:test
+[INFO] |  +- commons-beanutils:commons-beanutils:jar:1.8.3:test
+[INFO] |  +- commons-codec:commons-codec:jar:1.10:provided
+[INFO] |  +- org.eclipse.jetty:jetty-websocket:jar:8.1.10.v20130312:test
+[INFO] |  |  +- org.eclipse.jetty:jetty-util:jar:8.1.10.v20130312:test
+[INFO] |  |  +- org.eclipse.jetty:jetty-io:jar:8.1.10.v20130312:test
+[INFO] |  |  \- org.eclipse.jetty:jetty-http:jar:8.1.10.v20130312:test
+[INFO] |  \- org.apache.xbean:xbean-asm5-shaded:jar:4.3:test
+[INFO] +- org.apache.apex:apex-common:jar:3.3.0-incubating-SNAPSHOT:provided
+[INFO] |  +- org.apache.apex:apex-api:jar:3.3.0-incubating-SNAPSHOT:provided
+[INFO] |  |  +- org.apache.hadoop:hadoop-common:jar:2.2.0:provided
+[INFO] |  |  \- com.datatorrent:netlet:jar:1.2.0:provided
+[INFO] |  +- com.esotericsoftware.kryo:kryo:jar:2.24.0:provided
+[INFO] |  |  +- com.esotericsoftware.minlog:minlog:jar:1.2:provided
+[INFO] |  |  \- org.objenesis:objenesis:jar:2.1:provided
+[INFO] |  +- org.codehaus.jackson:jackson-core-asl:jar:1.9.2:provided
+[INFO] |  +- com.ning:async-http-client:jar:1.7.20:provided
+[INFO] |  +- javax.validation:validation-api:jar:1.1.0.Final:provided
+[INFO] |  \- com.sun.jersey:jersey-core:jar:1.9:provided
+[INFO] +- org.apache.apex:malhar-library:jar:3.4.0-incubating-SNAPSHOT:compile
+[INFO] +- org.apache.apex:malhar-library:jar:tests:3.4.0-incubating-SNAPSHOT:test
+[INFO] +- org.apache.apex:malhar-contrib:jar:3.4.0-incubating-SNAPSHOT:compile
+[INFO] \- com.datatorrent:dt-library:jar:3.3.0-SNAPSHOT:compile
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 1.703 s
+[INFO] Finished at: 2016-02-16T21:24:51+05:30
+[INFO] Final Memory: 15M/303M
+[INFO] ------------------------------------------------------------------------

@@ -2,7 +2,7 @@
  *  Copyright (c) 2015 DataTorrent, Inc.
  *  All Rights Reserved.
  */
-package com.datatorrent.apps.ingestion.io.jms;
+package com.datatorrent.modules.app;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -12,7 +12,6 @@ import javax.annotation.Nonnull;
 import com.datatorrent.api.AutoMetric;
 import com.datatorrent.api.Context;
 import com.datatorrent.api.Context.OperatorContext;
-import com.datatorrent.apps.ingestion.common.IngestionUtils;
 import com.datatorrent.lib.io.fs.AbstractFileOutputOperator;
 
 /**

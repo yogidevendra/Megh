@@ -1,4 +1,4 @@
-package com.datatorrent.apps.ingestion.io.jms;
+package com.datatorrent.modules.app;
 
 import java.io.IOException;
 
