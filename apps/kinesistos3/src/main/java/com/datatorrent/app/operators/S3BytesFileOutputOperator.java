@@ -20,6 +20,12 @@ public class S3BytesFileOutputOperator extends BytesNonAppendFileOutputOperator
 
   private static final String TMP_EXTENSION = ".tmp";
   private static final Logger LOG = LoggerFactory.getLogger(S3BytesFileOutputOperator.class);
+  
+  public S3BytesFileOutputOperator()
+  {
+    filePath = "";
+  }
+  
   @Override
   public void setup(Context.OperatorContext context)
   {
@@ -31,6 +37,7 @@ public class S3BytesFileOutputOperator extends BytesNonAppendFileOutputOperator
   void generateURIAndConcatToFiles()
   {
     filePath = SCHEME + "://" + accessKey + ":" + secretKey + "@" + bucketName + "/" + directoryName + "/";
+    LOG.debug("setting filePath {}", filePath);
   }
 
   /**

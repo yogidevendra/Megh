@@ -36,28 +36,45 @@
     <name>dt.application.*.operator.*.port.*.attr.BUFFER_MEMORY_MB</name>
     <value>256</value>
   </property>
+   
     <property>
         <name>dt.operator.FromKinesis.prop.streamName</name>
-    </property>
-    <property>
-        <name>dt.operator.FromKinesis.prop.accessKey</name>
-    </property>
-    <property>
-        <name>dt.operator.FromKinesis.prop.secretKey</name>
+        <value>TestStream</value>
     </property>
     <property>
         <name>dt.operator.FromKinesis.prop.endPoint</name>
+        <value>kinesis.us-east-1.amazonaws.com</value>
     </property>
     <property>
-        <name>dt.operator.WriteToS3.prop.accessKey</name>
+        <name>dt.operator.FromKinesis.prop.initialPartitionCount</name>
+        <value>2</value>
     </property>
     <property>
-        <name>dt.operator.WriteToS3.prop.secretKey</name>
+        <name>dt.operator.FromKinesis.prop.accessKey</name>
+        <value>AKIAIY62OEFADWS65JZA</value>
+    </property>
+    <property>
+        <name>dt.operator.FromKinesis.prop.secretKey</name>
+        <value>CQeMB8vVgkOh6JnyY0hfq643RMTBhvRQFRtok5aa</value>
     </property>
     <property>
         <name>dt.operator.WriteToS3.prop.bucketName</name>
+        <value>test.cloudtrial.kinesistos3</value>
     </property>
     <property>
         <name>dt.operator.WriteToS3.prop.directoryName</name>
+        <value>yogi</value>
+    </property>
+    <property>
+        <name>dt.operator.WriteToS3.prop.maxLength</name>
+        <value>1048576</value>
+    </property>
+    <property>
+        <name>dt.operator.WriteToS3.prop.accessKey</name>
+        <value>AKIAIY62OEFADWS65JZA</value>
+    </property>
+    <property>
+        <name>dt.operator.WriteToS3.prop.secretKey</name>
+        <value>CQeMB8vVgkOh6JnyY0hfq643RMTBhvRQFRtok5aa</value>
     </property>
 </configuration>
